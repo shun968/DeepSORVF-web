@@ -18,7 +18,9 @@
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"
   ],
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+  },
+  "remoteEnv": {
     "PATH": "/home/vscode/.local/bin:${containerEnv:PATH}"
   },
   "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install && pip install --user -r /workspace/requirements.txt && bash /workspace/.devcontainer/wrap-claude-cli.sh"
