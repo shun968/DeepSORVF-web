@@ -13,10 +13,13 @@ comments and identifiers in `utils/` and `AIS_utils.py`/`FUS_utils.py` are in Ch
 
 ## Environment / Running
 
-* Python 3.7, PyTorch 1.13.1 (or 1.9.1 per README badge), CUDA 11.7
-* Key deps: `easydict`, `geopy`, `pyproj`, `fastdtw`, `pandas`, `numpy` — there is no consolidated
-  top-level `requirements.txt`; only `detection_yolox/requirements.txt` exists (and targets an older
-  torch/opencv pin than what the top-level README documents — prefer the README's versions).
+* Python 3.7, PyTorch 1.13.1 (or 1.9.1 per README badge), CUDA 11.7 per the README's documented
+  environment — the devcontainer (see below) installs a CPU-only PyTorch 1.13.1 build instead of CUDA
+  11.7, since this repo is used for inference, not training GPU-bound models.
+* Top-level `requirements.txt` (installed by the devcontainer's `postCreateCommand`) covers every
+  third-party import in the repo, pinned to the latest release still shipping a Python 3.7 wheel.
+  `detection_yolox/requirements.txt` also exists but targets an older, narrower torch/opencv pin —
+  prefer the top-level file.
 * Before running, download and place two checkpoints (not included in the repo):
   * `ckpt.t7` → `deep_sort/deep_sort/deep/checkpoint/`
   * `YOLOX-final.pth` → `detection_yolox/model_data/`
@@ -68,6 +71,15 @@ changes there over refactors.
 * Launch `claude` from inside `.devcontainer/` (VS Code "Reopen in Container", or
   `docker exec -it <container> claude`), not on the host — Claude Code's access-control guarantees
   only hold when its process runs inside the container's namespaces.
+* `.devcontainer/Dockerfile` (`python:3.7-slim` base) plus the top-level `requirements.txt`
+  (`postCreateCommand` runs `pip install --user -r requirements.txt`) reproduce the README's
+  documented runtime, CPU-only. `libgl1`/`libglib2.0-0` are installed for `opencv-python`, which needs
+  them even headless. The two model checkpoints (`ckpt.t7`, `YOLOX-final.pth`) are hosted on Google
+  Drive and aren't fetched automatically — placing them under `deep_sort/deep_sort/deep/checkpoint/`
+  and `detection_yolox/model_data/` (both already tracked, empty otherwise) stays a manual step, per
+  the README's `実行方法` section. Trade-off worth knowing: Python 3.7 reached end-of-life in 2023, so
+  `python:3.7-slim` gets no further upstream security patches — pinned only because the README (and
+  PyTorch 1.13.1) require it.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
   (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet), and blocks `~/.ssh`, `~/.aws`, and any
@@ -108,8 +120,22 @@ changes there over refactors.
 * When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
   `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
   allowlist in `.claude/settings.json`.
-* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism)
-  and a policy for sandboxed test execution (this repo has no test suite yet).
+* `scripts/check-no-secrets.sh` (lefthook `pre-commit` job `no-secrets`) greps the *added* lines of
+  each staged file's diff for common secret shapes (AWS/Google/GitHub/Slack/OpenAI-style keys, PEM
+  private-key headers, generic `*_key`/`*_token` assignments) and blocks the commit on a match. This
+  is deliberately simple pattern-matching, not a real secrets scanner (e.g. gitleaks/detect-secrets)
+  — it won't catch secrets in shapes the patterns don't cover.
+* Policy: everything an agent runs in this repo — including any future test suite — is expected to
+  execute inside the access-controlled sandbox above by default. The only exceptions are operations
+  that are destructive (force-push, history rewrite, deleting branches/files outside what was asked)
+  or that publish something externally (pushing, opening/merging PRs, posting comments) — those
+  already require explicit human confirmation per Claude Code's own permission system, independent of
+  `sandbox.*`, and that stays true regardless of what `sandbox.*` allows.
+* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism);
+  a policy for sandboxed test execution, and a limited-injection mechanism for secret-requiring tests
+  (both deferred together — this repo has no test suite yet, and none of its current code makes
+  outbound calls that would need a secret, so there is nothing concrete to design either policy
+  against yet; revisit both when a test suite is added).
 
 ## Git conventions
 
