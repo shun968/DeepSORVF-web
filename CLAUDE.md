@@ -72,10 +72,11 @@ changes there over refactors.
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
   (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet), and blocks `~/.ssh`, `~/.aws`, and any
   `.env*` file anywhere in the repo — `**/.env*` already covers a bare `.env` at the repo root, since
-  `**` matches zero or more directories — from sandboxed commands (`sandbox.credentials`). `gh` is
-  listed in `sandbox.excludedCommands` and runs unsandboxed, since sandboxing its credential file
-  (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required by this file's Git conventions
-  below — everything else runs inside the sandbox. `permissions.deny` adds a second layer: it denies
+  `**` matches zero or more directories — from sandboxed commands (`sandbox.credentials`). `gh` (used
+  by this file's Git conventions below, and installed in `.devcontainer/Dockerfile` from GitHub's apt
+  repository) is listed in `sandbox.excludedCommands` and runs unsandboxed, so that a `deny` on its
+  credential file (`~/.config/gh/hosts.yml`) in any settings scope can't break it — everything else
+  runs inside the sandbox. `permissions.deny` adds a second layer: it denies
   `Bash(curl:*)`/`Bash(wget:*)` outright, and `Read`/`Edit` on `.credentials*`/`secrets/**` alongside
   the existing `.env*`/`~/.ssh`/`~/.aws` entries (pattern from
   [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json)).
