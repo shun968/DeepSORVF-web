@@ -67,8 +67,27 @@ changes there over refactors.
 
 * Launch `claude` from inside `.devcontainer/` (VS Code "Reopen in Container", or
   `docker exec -it <container> claude`), not on the host — Claude Code's access-control guarantees
-  only hold when its process runs inside the container's namespaces. Not yet configured: network
-  allowlist, `/sandbox`, `sandbox.credentials`.
+  only hold when its process runs inside the container's namespaces.
+* `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
+  (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
+  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI; `strictAllowlist: true` denies anything
+  else outright rather than prompting), and blocks `~/.ssh`/`~/.aws` from sandboxed commands
+  (`sandbox.credentials`). `gh` is listed in `sandbox.excludedCommands` and runs unsandboxed, since
+  sandboxing its credential file (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required
+  by this file's Git conventions below — everything else runs inside the sandbox.
+* Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
+  dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
+  allowlist/credentials config.
+* If bubblewrap fails to start with an error like `bwrap: failed to create new namespace` (a known
+  limitation of nesting bubblewrap inside an unprivileged Docker container), add
+  `{"sandbox": {"enableWeakerNestedSandbox": true}}` to `.claude/settings.local.json` (gitignored,
+  per-checkout) rather than the shared `.claude/settings.json` — it weakens isolation and should
+  only be opted into where the devcontainer's own boundary already covers you.
+* When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
+  `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
+  allowlist in `.claude/settings.json`.
+* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism)
+  and a policy for sandboxed test execution (this repo has no test suite yet).
 
 ## Git conventions
 
