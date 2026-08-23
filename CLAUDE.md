@@ -63,6 +63,81 @@ own README/LICENSE) adapted from the external YOLOX and DeepSORT reference imple
 the root README's "Reference" section; treat them as third-party code and prefer minimal, targeted
 changes there over refactors.
 
+## Dev container / sandboxed development (issue #7)
+
+* `.devcontainer/` builds a container with Claude Code itself installed inside it, via the official
+  [`ghcr.io/anthropics/devcontainer-features/claude-code`](https://github.com/anthropics/devcontainer-features/tree/main/src/claude-code)
+  feature (plus `ghcr.io/devcontainers/features/node:1`, since the CLI needs Node.js and the base image
+  is `python:3.14-slim`, which has none).
+* **Design constraint, verified 2026-08-23**: for Claude Code's access-control guarantees (filesystem,
+  network, tool restrictions) to hold, the `claude` **process itself** must run inside the container's
+  namespaces — not just individual Bash commands forwarded there. Launching `claude` from the
+  container's own terminal (VS Code's integrated terminal when using "Reopen in Container", or
+  `docker exec -it <container> claude`) satisfies this, because the process tree lives inside the
+  container regardless of where the keystrokes originate. Running `claude` on the host and only
+  routing selected Bash calls into the container does **not** satisfy it: Read/Edit/Write, MCP
+  servers, and hooks would still execute unrestricted on the host. See
+  [Sandbox environments](https://code.claude.com/docs/en/sandbox-environments) and
+  [Dev container](https://code.claude.com/docs/en/devcontainer) in the official docs.
+* `~/.claude` (auth/config) is mounted as a named volume (`claude-code-config-${devcontainerId}`) so
+  login persists across container rebuilds. This directory must be owned by the `vscode` user for
+  `claude` to write to it; the Dockerfile pre-creates `/home/vscode/.claude` with that ownership
+  *before* the volume is declared, since Docker only copies a mount target's existing
+  ownership/permissions into a brand-new named volume the first time it's mounted — a plain
+  `useradd` without this step leaves the volume root-owned and unwritable by `vscode` (verified by
+  testing both ways).
+* Still open (issue #7 scope not yet implemented here): a network egress allowlist (the Claude Code
+  feature installs an optional `init-firewall.sh`, disabled by default — enabling it needs
+  `runArgs: ["--cap-add=NET_ADMIN", "--cap-add=NET_RAW"]` plus running it from `postCreateCommand`),
+  and layering Claude Code's own built-in bubblewrap-based Bash sandbox (`/sandbox`,
+  [docs](https://code.claude.com/docs/en/sandboxing)) inside the container for defense-in-depth
+  command-level restriction (this is the same bubblewrap the issue originally called for — Claude
+  Code ships it natively, so it doesn't need to be built from scratch). Secrets/credential handling
+  (`sandbox.credentials`) is likewise unconfigured so far.
+
+## Git conventions
+
+* Branch names must follow `<type>/<issue-number>-<slug>`, e.g. `feature/7-sandbox-dev-environment`,
+  `fix/12-network-allowlist-bug`, `docs/15-sandbox-design-doc`. `<type>` is one of `feature`, `fix`,
+  `docs`, `chore`, `refactor`, `test`. `<slug>` is a short kebab-case description.
+* This is enforced locally via [lefthook](https://github.com/evilmartians/lefthook)'s `pre-commit`
+  hook (`lefthook.yml` → `scripts/check-branch-name.sh`), which rejects commits on a branch whose name
+  doesn't match `^(feature|fix|docs|chore|refactor|test)/[0-9]+-[a-z0-9-]+$` (default branches `main`/
+  `master` are exempt).
+* **`git clone` does NOT register the hook** — git never executes repo-tracked code automatically on
+  clone/checkout, and `.git/hooks/` itself is not version-controlled, only `lefthook.yml` is. A
+  one-time `lefthook install` is required per checkout to activate it, and this repo provides two
+  ways to do that:
+  * **Dev container (recommended)** — open the repo in the `.devcontainer/` container (VS Code
+    "Reopen in Container", or `devcontainer up`). The image (`.devcontainer/Dockerfile`) installs
+    `lefthook` inside the container only — nothing is installed into the host's Python/pip — and
+    `postCreateCommand` (`.devcontainer/devcontainer.json`) runs `lefthook install` automatically the
+    first time the container is created, so the hook is active with no manual step, as long as you
+    run `git commit` from inside the container (its terminal has `lefthook` on `PATH`).
+  * **Bare host checkout (fallback)** — if not using the dev container, install and register it
+    manually; note this does install `lefthook` into your host Python environment:
+    ```
+    pip install lefthook   # or: uv tool install lefthook / uvx lefthook install
+    lefthook install
+    ```
+  **Caveat (verified 2026-08-23):** the `.git/hooks/pre-commit` shim `lefthook install` writes is
+  inside the bind-mounted workspace, so it is physically present on the host filesystem either way —
+  but the shim only *runs the check* if it can find a `lefthook` binary on `PATH` (or a few other
+  fallback locations such as `node_modules`). If you commit from a bare host shell that never had
+  `lefthook` installed on it — e.g. the hook was only ever registered from inside the dev
+  container — the shim prints `Can't find lefthook in PATH` and **exits 0, silently letting the
+  commit through unchecked**; it does not fail closed. So enforcement is only real when `git commit`
+  runs somewhere `lefthook` is actually installed (inside the dev container, or on the host after the
+  fallback path above) — don't rely on it if you commit from an environment that doesn't have either.
+  GitHub's own `branch_name_pattern` repository ruleset was tried first but is **not available on
+  GitHub Free** for personal accounts (confirmed by API testing on 2026-08-23: the rule is rejected
+  with an empty validation error, and `enforcement: evaluate` is explicitly Enterprise-only) — hence
+  the lefthook-based fallback. There is no server-side enforcement script in this repo since it
+  couldn't be made to work on the current plan; revisit this if the repository ever moves to GitHub
+  Team/Enterprise.
+* Prefer `gh issue develop <number> --name <type>/<number>-<slug> --checkout` to create branches, since
+  it also links the branch to the issue in GitHub's UI.
+
 ## Localization
 
 `README.md` is written in Japanese and is the sole, canonical README for this repository (it was

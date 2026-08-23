@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    branch-name:
+      run: scripts/check-branch-name.sh
