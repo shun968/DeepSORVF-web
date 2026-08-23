@@ -20,5 +20,5 @@
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
-  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install"
+  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install && bash /workspace/.devcontainer/wrap-claude-cli.sh"
 }

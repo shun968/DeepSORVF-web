@@ -70,16 +70,21 @@ changes there over refactors.
   only hold when its process runs inside the container's namespaces.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
-  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet; `strictAllowlist: true` denies anything
-  else outright rather than prompting), and blocks `~/.ssh`, `~/.aws`, and any `.env*` file anywhere
-  in the repo — `**/.env*` already covers a bare `.env` at the repo root, since `**` matches zero or
-  more directories — from sandboxed commands (`sandbox.credentials`). `gh` is listed in
-  `sandbox.excludedCommands` and runs unsandboxed, since sandboxing its credential file
+  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet), and blocks `~/.ssh`, `~/.aws`, and any
+  `.env*` file anywhere in the repo — `**/.env*` already covers a bare `.env` at the repo root, since
+  `**` matches zero or more directories — from sandboxed commands (`sandbox.credentials`). `gh` is
+  listed in `sandbox.excludedCommands` and runs unsandboxed, since sandboxing its credential file
   (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required by this file's Git conventions
   below — everything else runs inside the sandbox. `permissions.deny` adds a second layer: it denies
   `Bash(curl:*)`/`Bash(wget:*)` outright, and `Read`/`Edit` on `.credentials*`/`secrets/**` alongside
   the existing `.env*`/`~/.ssh`/`~/.aws` entries (pattern from
   [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json)).
+* `sandbox.network.strictAllowlist` (the flag that turns `allowedDomains` into a deterministic deny
+  instead of a prompt) is only honored from user, managed/policy, or CLI (`--settings`) settings — a
+  project-committed `.claude/settings.json` can't set it. `.devcontainer/wrap-claude-cli.sh` (run once
+  from `postCreateCommand`) works around this: it shadows the `claude` binary on `PATH` with a wrapper
+  that always adds `--settings /workspace/.devcontainer/claude-strict-network-settings.json`, which
+  sets `strictAllowlist: true` at CLI scope and merges with `allowedDomains` from `.claude/settings.json`.
 * `sandbox.credentials` deny rules can't be selectively re-opened (a `deny` only ever narrows access
   in every settings scope, with no counterpart `allow`), so blocking every `.env*` file blocks
   non-production ones too (`.env.test`, `.env.development`, …), not just `.env.production`. This repo
