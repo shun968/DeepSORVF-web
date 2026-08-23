@@ -67,15 +67,14 @@ changes there over refactors.
 
 * Launch `claude` from inside `.devcontainer/` (VS Code "Reopen in Container", or
   `docker exec -it <container> claude`), not on the host — Claude Code's access-control guarantees
-  only hold when its process runs inside the container's namespaces. Rationale and open items
-  (network allowlist, `/sandbox`, `sandbox.credentials` are not yet configured): [ADR-0002](docs/adr/0002-claude-code-runs-inside-devcontainer.md).
+  only hold when its process runs inside the container's namespaces. Not yet configured: network
+  allowlist, `/sandbox`, `sandbox.credentials`.
 
 ## Git conventions
 
 * Branch names: `<type>/<issue-number>-<slug>` (`feature`, `fix`, `docs`, `chore`, `refactor`, `test`),
   e.g. `feature/7-sandbox-dev-environment`. Enforced by lefthook's `pre-commit` hook — run
-  `lefthook install` once per checkout (automatic inside the dev container). Rationale:
-  [ADR-0001](docs/adr/0001-branch-naming-enforced-via-lefthook.md).
+  `lefthook install` once per checkout (automatic inside the dev container).
 * Prefer `gh issue develop <number> --name <type>/<number>-<slug> --checkout` to create branches.
 * Commit messages: [Conventional Commits](https://www.conventionalcommits.org/), **title only** (no
   body/footer — this repo does not use a trailing `Co-Authored-By`/`Claude-Session` footer), must
@@ -88,11 +87,11 @@ changes there over refactors.
   ```
   gh pr merge <number> --squash --delete-branch --subject "type(scope): 説明 (#issue番号)" --body ""
   ```
-  Rationale and caveats: [ADR-0003](docs/adr/0003-conventional-commits-and-github-flow.md).
 
 ## Architecture decision records
 
-Technical decisions live in `docs/adr/` (Nygard format) — see the `adr` skill
+Decisions about DeepSORVF's own architecture (the fusion pipeline, tracking algorithm, etc. — not
+dev-environment or repo-management tooling) live in `docs/adr/` (Nygard format) — see the `adr` skill
 (`.claude/skills/adr/SKILL.md`) for the template and update rules.
 
 ## Localization
