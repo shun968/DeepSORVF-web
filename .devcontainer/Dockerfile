@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.7-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         bubblewrap \
         socat \
+        libgl1 \
+        libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # gh is required by this repo's Git conventions (branch creation, PR merge — see
