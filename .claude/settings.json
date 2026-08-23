@@ -19,7 +19,9 @@
     "credentials": {
       "files": [
         { "path": "~/.ssh", "mode": "deny" },
-        { "path": "~/.aws", "mode": "deny" }
+        { "path": "~/.aws", "mode": "deny" },
+        { "path": ".env", "mode": "deny" },
+        { "path": "**/.env*", "mode": "deny" }
       ]
     }
   },
@@ -28,7 +30,11 @@
       "Read(~/.ssh/**)",
       "Edit(~/.ssh/**)",
       "Read(~/.aws/**)",
-      "Edit(~/.aws/**)"
+      "Edit(~/.aws/**)",
+      "Read(/.env)",
+      "Edit(/.env)",
+      "Read(/**/.env*)",
+      "Edit(/**/.env*)"
     ]
   }
 }

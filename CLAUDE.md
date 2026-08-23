@@ -71,7 +71,8 @@ changes there over refactors.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
   (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet; `strictAllowlist: true` denies anything
-  else outright rather than prompting), and blocks `~/.ssh`/`~/.aws` from sandboxed commands
+  else outright rather than prompting), and blocks `~/.ssh`, `~/.aws`, and any `.env*` file anywhere
+  in the repo (including production-oriented ones like `.env.production`) from sandboxed commands
   (`sandbox.credentials`). `gh` is listed in `sandbox.excludedCommands` and runs unsandboxed, since
   sandboxing its credential file (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required
   by this file's Git conventions below — everything else runs inside the sandbox.
