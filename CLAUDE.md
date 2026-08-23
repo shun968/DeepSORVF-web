@@ -67,8 +67,49 @@ changes there over refactors.
 
 * Launch `claude` from inside `.devcontainer/` (VS Code "Reopen in Container", or
   `docker exec -it <container> claude`), not on the host — Claude Code's access-control guarantees
-  only hold when its process runs inside the container's namespaces. Not yet configured: network
-  allowlist, `/sandbox`, `sandbox.credentials`.
+  only hold when its process runs inside the container's namespaces.
+* `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
+  (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
+  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet), and blocks `~/.ssh`, `~/.aws`, and any
+  `.env*` file anywhere in the repo — `**/.env*` already covers a bare `.env` at the repo root, since
+  `**` matches zero or more directories — from sandboxed commands (`sandbox.credentials`). `gh` (used
+  by this file's Git conventions below, and installed in `.devcontainer/Dockerfile` from GitHub's apt
+  repository) is listed in `sandbox.excludedCommands` and runs unsandboxed, so that a `deny` on its
+  credential file (`~/.config/gh/hosts.yml`) in any settings scope can't break it — everything else
+  runs inside the sandbox. `permissions.deny` adds a second layer: it denies
+  `Bash(curl:*)`/`Bash(wget:*)` outright, and `Read`/`Edit` on `.credentials*`/`secrets/**` alongside
+  the existing `.env*`/`~/.ssh`/`~/.aws` entries (pattern from
+  [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json)).
+* `sandbox.network.strictAllowlist` (the flag that turns `allowedDomains` into a deterministic deny
+  instead of a prompt) is only honored from user, managed/policy, or CLI (`--settings`) settings — a
+  project-committed `.claude/settings.json` can't set it. `.devcontainer/wrap-claude-cli.sh` (run once
+  from `postCreateCommand`) works around this: it shadows the `claude` binary on `PATH` with a wrapper
+  that always adds `--settings /workspace/.devcontainer/claude-strict-network-settings.json`, which
+  sets `strictAllowlist: true` at CLI scope and merges with `allowedDomains` from `.claude/settings.json`.
+* `sandbox.credentials` deny rules can't be selectively re-opened (a `deny` only ever narrows access
+  in every settings scope, with no counterpart `allow`), so blocking every `.env*` file blocks
+  non-production ones too (`.env.test`, `.env.development`, …), not just `.env.production`. This repo
+  has no `.env` files or test suite yet, so the broad block is deliberate; if a future test suite
+  needs to read a non-secret `.env.*` config file inside the sandbox, narrow the
+  `sandbox.credentials.files` glob in `.claude/settings.json` at that point (e.g. list `.env`,
+  `.env.local`, `.env*.production*` explicitly) rather than leaving it broad.
+* Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
+  dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
+  allowlist/credentials config.
+* `.devcontainer/devcontainer.json`'s `runArgs` disable Docker's default AppArmor and seccomp
+  confinement for the whole devcontainer (`--security-opt apparmor=unconfined` and
+  `--security-opt seccomp=unconfined`) — bubblewrap needs both to create the nested user/mount
+  namespaces it relies on. No host-level AppArmor setup is needed: Ubuntu's bundled
+  `/etc/apparmor.d/bwrap-userns-restrict` already grants bubblewrap the exception it needs, once
+  Docker's own container-level confinement is out of the way. Trade-off worth knowing: this removes
+  Docker's own sandboxing of the *entire* devcontainer, not just the bwrap-based command sandbox —
+  Claude Code's `sandbox.*` config above remains the actual access-control boundary for agent-run
+  commands.
+* When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
+  `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
+  allowlist in `.claude/settings.json`.
+* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism)
+  and a policy for sandboxed test execution (this repo has no test suite yet).
 
 ## Git conventions
 

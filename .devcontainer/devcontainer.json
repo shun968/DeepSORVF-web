@@ -3,6 +3,10 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "runArgs": [
+    "--security-opt", "apparmor=unconfined",
+    "--security-opt", "seccomp=unconfined"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
@@ -16,5 +20,5 @@
   "containerEnv": {
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
-  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install"
+  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install && bash /workspace/.devcontainer/wrap-claude-cli.sh"
 }

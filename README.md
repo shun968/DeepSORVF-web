@@ -122,6 +122,14 @@ C4Component
     Rel(user, result_files, "結果を確認する")
 ```
 
+## 開発環境セットアップ (Claude Code などAIエージェント向け)
+
+Claude Codeなどのエージェントで本リポジトリのコード編集・コマンド実行を行う場合は、`.devcontainer/` のdevContainerを介して起動すること。ホスト上で直接 `claude` を起動した場合、後述するアクセス制御（サンドボックス）の保証が効かない。
+
+* VS Codeの「Reopen in Container」、または `docker exec -it <container> claude` でコンテナ内から起動する。
+* コンテナ内では `.claude/settings.json`（コミット済み・プロジェクト共有設定）により、Bashコマンドがbubblewrap (`bwrap`) ベースのサンドボックスの中で実行され、到達可能な外部ホストやアクセス可能なファイルが制限される。設定項目の詳細は `CLAUDE.md` の「Dev container」節を参照。
+* `.devcontainer/devcontainer.json` の `runArgs` で、devcontainer自体をDockerの既定のAppArmor/seccomp閉じ込めから外している（bubblewrapが必要とするnamespace/mount操作のため）。追加のホスト側セットアップは不要。詳細は `CLAUDE.md` の「Dev container」節を参照。
+
 ## 動作環境
 * Python3.7
 * easydict 1.11
