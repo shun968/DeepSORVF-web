@@ -70,7 +70,7 @@ changes there over refactors.
   only hold when its process runs inside the container's namespaces.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
-  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI; `strictAllowlist: true` denies anything
+  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet; `strictAllowlist: true` denies anything
   else outright rather than prompting), and blocks `~/.ssh`/`~/.aws` from sandboxed commands
   (`sandbox.credentials`). `gh` is listed in `sandbox.excludedCommands` and runs unsandboxed, since
   sandboxing its credential file (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required
@@ -78,8 +78,28 @@ changes there over refactors.
 * Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
   dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
   allowlist/credentials config.
-* If bubblewrap fails to start with an error like `bwrap: failed to create new namespace` (a known
-  limitation of nesting bubblewrap inside an unprivileged Docker container), add
+* **Host prerequisite (one-time, outside the repo, needed even when running inside the devcontainer):**
+  on the machine running Docker, `sysctl kernel.apparmor_restrict_unprivileged_userns` — Ubuntu 24.04+
+  defaults this to `1`, which blocks bubblewrap's user-namespace creation at the *host kernel* level.
+  This is not fixable from inside a container (confirmed: `--security-opt apparmor=unconfined` on the
+  container does not help) or via any `.claude/settings.json` key — it needs a host-level AppArmor
+  profile for `bwrap`, installed once per machine:
+  ```
+  sudo tee /etc/apparmor.d/bwrap > /dev/null <<'EOF'
+  abi <abi/4.0>,
+  include <tunables/global>
+
+  profile bwrap /usr/bin/bwrap flags=(unconfined) {
+    userns,
+    include if exists <local/bwrap>
+  }
+  EOF
+  sudo systemctl reload apparmor
+  ```
+  If the sysctl above prints `0` or `No such file or directory`, skip this step.
+* Only once the sandbox actually starts, if it fails with `bwrap: failed to create new namespace`
+  (a *different* error — the known limitation of nesting bubblewrap inside an unprivileged Docker
+  container, distinct from the AppArmor prerequisite above), add
   `{"sandbox": {"enableWeakerNestedSandbox": true}}` to `.claude/settings.local.json` (gitignored,
   per-checkout) rather than the shared `.claude/settings.json` — it weakens isolation and should
   only be opted into where the devcontainer's own boundary already covers you.

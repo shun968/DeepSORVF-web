@@ -11,7 +11,9 @@
         "*.githubusercontent.com",
         "registry.npmjs.org",
         "pypi.org",
-        "files.pythonhosted.org"
+        "files.pythonhosted.org",
+        "nuget.org",
+        "*.nuget.org"
       ]
     },
     "credentials": {
