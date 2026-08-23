@@ -120,8 +120,16 @@ changes there over refactors.
 * When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
   `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
   allowlist in `.claude/settings.json`.
-* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism)
-  and a policy for sandboxed test execution (this repo has no test suite yet).
+* `scripts/check-no-secrets.sh` (lefthook `pre-commit` job `no-secrets`) greps the *added* lines of
+  each staged file's diff for common secret shapes (AWS/Google/GitHub/Slack/OpenAI-style keys, PEM
+  private-key headers, generic `*_key`/`*_token` assignments) and blocks the commit on a match. This
+  is deliberately simple pattern-matching, not a real secrets scanner (e.g. gitleaks/detect-secrets)
+  — it won't catch secrets in shapes the patterns don't cover.
+* Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism);
+  a policy for sandboxed test execution, and a limited-injection mechanism for secret-requiring tests
+  (both deferred together — this repo has no test suite yet, and none of its current code makes
+  outbound calls that would need a secret, so there is nothing concrete to design either policy
+  against yet; revisit both when a test suite is added).
 
 ## Git conventions
 
