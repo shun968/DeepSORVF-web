@@ -3,6 +3,10 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "runArgs": [
+    "--security-opt", "apparmor=unconfined",
+    "--security-opt", "seccomp=unconfined"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}

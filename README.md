@@ -122,6 +122,14 @@ C4Component
     Rel(user, result_files, "結果を確認する")
 ```
 
+## 開発環境セットアップ (Claude Code などAIエージェント向け)
+
+Claude Codeなどのエージェントで本リポジトリのコード編集・コマンド実行を行う場合は、`.devcontainer/` のdevContainerを介して起動すること。ホスト上で直接 `claude` を起動した場合、後述するアクセス制御（サンドボックス）の保証が効かない。
+
+* VS Codeの「Reopen in Container」、または `docker exec -it <container> claude` でコンテナ内から起動する。
+* コンテナ内では `.claude/settings.json`（コミット済み・プロジェクト共有設定）により、Bashコマンドがbubblewrap (`bwrap`) ベースのサンドボックスの中で実行される。設定上は到達可能な外部ホストをアローリスト方式（GitHub/npm/PyPI/NuGet等のみ許可、それ以外はデフォルト拒否）に制限し、`~/.ssh`・`~/.aws`・`.env*` 等の秘密情報ファイルへのアクセスを拒否する設計だが、**現時点(Claude Code 2.1.241)ではこのアローリスト/秘密情報保護は実際には機能していないことを直接検証済み**（ファイルシステムの隔離自体は機能している）。詳細と根拠、回避すべき誤解は `CLAUDE.md` の「Dev container」節の既知の不具合の記載を参照。
+* `.devcontainer/devcontainer.json` の `runArgs` で、devcontainer自体をDockerの既定のAppArmor/seccomp閉じ込めから外している（bubblewrapが必要とするnamespace/mount操作のため）。追加のホスト側セットアップは不要。背景と検証結果は `CLAUDE.md` の「Dev container」節を参照。
+
 ## 動作環境
 * Python3.7
 * easydict 1.11

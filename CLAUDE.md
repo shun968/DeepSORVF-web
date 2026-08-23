@@ -87,31 +87,40 @@ changes there over refactors.
 * Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
   dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
   allowlist/credentials config.
-* **Host prerequisite (one-time, outside the repo, needed even when running inside the devcontainer):**
-  on the machine running Docker, `sysctl kernel.apparmor_restrict_unprivileged_userns` — Ubuntu 24.04+
-  defaults this to `1`, which blocks bubblewrap's user-namespace creation at the *host kernel* level.
-  This is not fixable from inside a container (confirmed: `--security-opt apparmor=unconfined` on the
-  container does not help) or via any `.claude/settings.json` key — it needs a host-level AppArmor
-  profile for `bwrap`, installed once per machine:
-  ```
-  sudo tee /etc/apparmor.d/bwrap > /dev/null <<'EOF'
-  abi <abi/4.0>,
-  include <tunables/global>
-
-  profile bwrap /usr/bin/bwrap flags=(unconfined) {
-    userns,
-    include if exists <local/bwrap>
-  }
-  EOF
-  sudo systemctl reload apparmor
-  ```
-  If the sysctl above prints `0` or `No such file or directory`, skip this step.
-* Only once the sandbox actually starts, if it fails with `bwrap: failed to create new namespace`
-  (a *different* error — the known limitation of nesting bubblewrap inside an unprivileged Docker
-  container, distinct from the AppArmor prerequisite above), add
-  `{"sandbox": {"enableWeakerNestedSandbox": true}}` to `.claude/settings.local.json` (gitignored,
-  per-checkout) rather than the shared `.claude/settings.json` — it weakens isolation and should
-  only be opted into where the devcontainer's own boundary already covers you.
+* **Known bug, unresolved: `sandbox.network.allowedDomains` and `sandbox.credentials` are not
+  actually enforced.** Confirmed by direct reproduction on Claude Code 2.1.241, both on the bare host
+  and inside the devcontainer (not container-specific): a sandboxed Bash `curl` reaches domains
+  outside the allowlist (`example.com`, `www.google.com`) exactly like `github.com` — `curl -v` shows
+  every `CONNECT` through the sandbox's local proxy (`https_proxy=...@localhost:3128`) getting an
+  unconditional `200 Connection Established` with no per-domain filtering. Likewise, a dummy `.env*`
+  file placed outside the repo (e.g. in a scratch directory) was read back cleanly by a sandboxed
+  `cat` — `sandbox.credentials` did not block it. (Writing a `.env*` file *inside* this repo's root
+  was blocked, but by a separate, coarser permission-prompt layer that intercepts Bash commands
+  referencing dotenv-like paths — unrelated to this repo's `sandbox.credentials` config, and not a
+  substitute for it: it doesn't cover reads, and doesn't cover paths outside the repo.) Bubblewrap's
+  own filesystem/mount-namespace isolation is confirmed working (`SANDBOX_RUNTIME=1`, a distinct mount
+  namespace) — only the network and credentials filters on top of it are broken. **Do not currently
+  rely on the network allowlist or `.env*`/`~/.ssh`/`~/.aws` protection as an actual security
+  boundary** — treat any Bash command as if it can reach the open internet and read any file the OS
+  user can read. Likely a Claude Code product bug rather than a misconfiguration in this repo (worth
+  reporting via `/help`'s feedback link) — re-test after upgrading Claude Code before trusting this
+  boundary again.
+* `.devcontainer/devcontainer.json`'s `runArgs` disable Docker's default AppArmor and seccomp
+  confinement for the whole devcontainer (`--security-opt apparmor=unconfined` and
+  `--security-opt seccomp=unconfined`) — bubblewrap needs both to create the nested user/mount
+  namespaces it relies on, even on a host with no kernel-level namespace restrictions. Confirmed by
+  direct reproduction (isolated `docker run` tests against a bare `python:3.14-slim` image, outside
+  this repo): Docker's default seccomp profile alone blocks the user-namespace creation bwrap needs
+  (`bwrap: No permissions to create new namespace`), and once that's lifted, Docker's default AppArmor
+  profile (`docker-default`) separately blocks the mount operations bwrap performs inside the new
+  namespace (`bwrap: Failed to make / slave: Permission denied`) — both had to be disabled together;
+  neither alone was sufficient. No host-level AppArmor setup is needed: on a host where
+  `kernel.apparmor_restrict_unprivileged_userns` is enforced (e.g. Ubuntu 24.04+), the distro's own
+  bundled `/etc/apparmor.d/bwrap-userns-restrict` already grants bubblewrap the exception it needs,
+  once Docker's own container-level confinement is out of the way — no custom host AppArmor profile
+  needs to be installed. This is a real trade-off worth knowing: it removes Docker's own sandboxing of
+  the *entire* devcontainer, not just the bwrap-based command sandbox — Claude Code's `sandbox.*`
+  config above remains the actual access-control boundary for agent-run commands.
 * When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
   `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
   allowlist in `.claude/settings.json`.
