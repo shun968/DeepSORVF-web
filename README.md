@@ -1,12 +1,11 @@
 
-# <p align=center> [TITS 2023] DeepSORVF: Deep Learning-based Simple Online and Real-Time Vessel Data Fusion Method</p>
+# <p align=center> [TITS 2023] DeepSORVF: 深層学習に基づくシンプルなオンライン・リアルタイム船舶データ融合手法</p>
 
 <div align="center">
 
 [![Paper](https://img.shields.io/badge/PDF-Paper-red.svg)](https://ieeexplore.ieee.org/abstract/document/10159572)
 [![Web](https://img.shields.io/badge/DeepSORVF-Web-blue.svg)](https://gy65896.github.io/projects/TITS2023_DeepSORVF/index.html)
 [![Dataset](https://img.shields.io/badge/FVessel-Dataset-orange.svg)](https://github.com/gy65896/FVessel)
-[![Chinese](https://img.shields.io/badge/简体中文-Chinese-green.svg)](README_zh-CN.md)
 [![3.7](https://img.shields.io/badge/Python-3.7-pink.svg)](https://www.python.org/)
 [![1.9.1](https://img.shields.io/badge/Pytorch-1.9.1-yellow.svg)](https://pytorch.org/)
 <a target="_blank" href="https://colab.research.google.com/github/gy65896/DeepSORVF/blob/main/main_example.ipynb">
@@ -16,25 +15,114 @@
 </div>
 
 ---
->**Asynchronous Trajectory Matching-Based Multimodal Maritime Data Fusion for Vessel Traffic Surveillance in Inland Waterways**<br>
+>**内陸水路における船舶交通監視のための非同期軌跡マッチングに基づくマルチモーダル海事データ融合**<br>
 >[Yu Guo](https://scholar.google.com/citations?user=klYz-acAAAAJ&hl=zh-CN), [Ryan Wen Liu](http://mipc.whut.edu.cn/index.html)<sup>* </sup>, [Jingxiang Qu](https://scholar.google.com/citations?user=9zK-zGoAAAAJ&hl=zh-CN), [Yuxu Lu](https://scholar.google.com/citations?user=XXge2_0AAAAJ&hl=zh-CN), Fenghua Zhu<sup>* </sup>, Yisheng Lv <br>
 >(* Corresponding Author)<br> 
 >IEEE Transactions on Intelligent Transportation Systems
 
-> **Introduction:** *In this work, we first extract the AIS- and video-based vessel trajectories, and then propose a deep learning-enabled asynchronous trajectory matching method (named DeepSORVF) to fuse the AIS-based vessel information with the corresponding visual targets. In addition, by combining the AIS- and video-based movement features, we also present a prior knowledge-driven anti-occlusion method to yield accurate and robust vessel tracking results under occlusion conditions.*
+> **概要:** *本研究では、まずAISベースおよび映像ベースの船舶軌跡を抽出し、次にAISベースの船舶情報と対応する視覚的な物標を融合させるための深層学習を用いた非同期軌跡マッチング手法(DeepSORVFと命名)を提案する。さらに、AISベースと映像ベースの運動特徴を組み合わせることで、遮蔽(オクルージョン)条件下でも正確かつロバストな船舶追跡結果を得るための事前知識駆動型の遮蔽対策手法も提示する。*
 <hr />
 
 ![video](https://github.com/gy65896/DeepSORVF/assets/48637474/42e3590f-51d0-4f5b-81fd-85e4dd796fe6.gif)
 
-## Flowchart
+## フローチャート
 
 ![Figure01_Flowchart](https://user-images.githubusercontent.com/48637474/230878573-a26b035d-3ed0-4db9-9b58-161067632daf.jpg)
-<div align=center><b>The architecture of the proposed deep learning-based simple online and real-time vessel data fusion method.</b></div>
+<div align=center><b>提案する深層学習に基づくシンプルなオンライン・リアルタイム船舶データ融合手法のアーキテクチャ。</b></div>
 
 ![Figure03_Video](https://user-images.githubusercontent.com/48637474/230878762-223472ae-cf19-4167-adbb-80c3f77ae9c3.jpg)
-<div align=center><b>The flowchart of anti-occlusion tracking method for video-based vessel trajectory extraction.</b></div>
+<div align=center><b>映像ベースの船舶軌跡抽出のための遮蔽対策追跡手法のフローチャート。</b></div>
 
-## Environment
+## ディレクトリ構成
+```
+DeepSORVF/
+├── main.py                # AISデータと映像データの融合処理を実行するメインスクリプト
+├── main_example.ipynb     # 実行例を示すJupyterノートブック
+├── License
+├── deep_sort/              # DeepSORTによる物標追跡モジュール
+│   ├── configs/
+│   │   └── deep_sort.yaml
+│   ├── deep_sort/
+│   │   ├── deep/             # 外観特徴抽出用CNN(モデル定義・チェックポイント等)
+│   │   ├── sort/              # カルマンフィルタ・マッチングなどの追跡コアロジック
+│   │   └── deep_sort.py
+│   └── utils/                # DeepSORT用の補助ユーティリティ
+├── detection_yolox/        # YOLOXベースの船舶検出モジュール
+│   ├── nets/                 # ネットワーク定義
+│   ├── utils/                 # 学習・推論用ユーティリティ
+│   ├── model_data/            # クラス定義・アンカー設定等
+│   ├── train.py               # 学習スクリプト
+│   ├── predict.py             # 推論スクリプト
+│   └── yolo.py
+├── utils/                   # AIS処理・データ融合・可視化用ユーティリティ
+│   ├── AIS_utils.py           # AISデータ処理
+│   ├── FUS_utils.py           # AIS・映像データ融合処理
+│   ├── VIS_utils.py           # 可視化処理
+│   ├── draw.py / draw_org.py  # 結果描画
+│   ├── file_read.py           # データ読み込み
+│   └── gen_result.py          # 結果生成
+└── README.md                # README(本ファイル)
+```
+
+## コンポーネント図 (C4 Model)
+
+C4モデルのコンポーネント図(レベル3)として、DeepSORVFアプリケーション内部の主要コンポーネントとその関係を示す。
+
+```mermaid
+C4Component
+    title DeepSORVF コンポーネント図 (C4 Model - Level 3: Component)
+
+    Person(user, "研究者 / オペレーター", "映像とAISの融合結果を確認する")
+
+    System_Ext(camera, "定点カメラ", "船舶を撮影する監視カメラ")
+    System_Ext(ais_recv, "AIS受信機", "船舶のAIS信号を受信する")
+
+    ContainerDb_Ext(video_file, "映像ファイル", "動画データ")
+    ContainerDb_Ext(ais_file, "AISデータファイル", "CSV形式の航行データ")
+    ContainerDb_Ext(result_files, "結果ファイル", "融合動画 / 評価メトリクス")
+
+    Container_Boundary(app, "DeepSORVF アプリケーション") {
+        Component(main, "メインコントローラ", "main.py", "フレームごとの処理ループを制御し、各コンポーネントを統括する")
+        Component(file_read, "入力リーダー", "utils/file_read.py", "動画・AISファイルパス、初期時刻、カメラパラメータを読み込む")
+
+        Component(ais_pro, "AIS処理 (AISPRO)", "utils/AIS_utils.py", "AISデータを解析し、カメラ画像座標系上の船舶軌跡に変換する")
+
+        Component(vis_pro, "映像追跡 (VISPRO)", "utils/VIS_utils.py", "映像フレームから船舶を検出・追跡し、視覚軌跡を生成する")
+        Component(detector, "船舶検出器", "detection_yolox", "YOLOXにより映像フレーム中の船舶を検出する")
+        Component(tracker, "物標追跡器", "deep_sort", "DeepSORTによりフレーム間で検出結果を追跡しIDを付与する")
+
+        Component(fus_pro, "データ融合 (FUSPRO)", "utils/FUS_utils.py", "DTWによる軌跡マッチングでAIS軌跡と視覚軌跡を非同期に融合する")
+
+        Component(draw, "結果描画 (DRAW)", "utils/draw.py", "融合結果(軌跡・ID・MMSI等)を映像フレーム上に描画する")
+        Component(gen_result, "結果出力", "utils/gen_result.py", "融合結果を評価用メトリクスファイルとして出力する")
+    }
+
+    Rel(camera, video_file, "録画")
+    Rel(ais_recv, ais_file, "記録")
+
+    Rel(main, file_read, "① パス・パラメータを取得")
+    Rel(file_read, video_file, "読み込み")
+    Rel(file_read, ais_file, "読み込み")
+
+    Rel(main, ais_pro, "② AISデータを解析")
+    Rel(ais_pro, ais_file, "読み込み")
+
+    Rel(main, vis_pro, "③ 映像フレームとAIS軌跡を渡す")
+    Rel(vis_pro, detector, "船舶検出を依頼")
+    Rel(vis_pro, tracker, "フレーム間追跡を依頼")
+
+    Rel(main, fus_pro, "④ AIS軌跡と視覚軌跡を渡す")
+
+    Rel(main, gen_result, "⑤ 融合結果を渡す")
+    Rel(gen_result, result_files, "メトリクスを書き出し")
+
+    Rel(main, draw, "⑥ 融合結果を渡す")
+    Rel(draw, result_files, "動画として書き出し")
+
+    Rel(user, result_files, "結果を確認する")
+```
+
+## 動作環境
 * Python3.7
 * easydict 1.11
 * geopy 2.4.1
@@ -45,27 +133,27 @@
 * pandas 1.3.5
 * numpy 1.21.6
 
-## Running
-* Save [ckpt.t7](https://drive.google.com/file/d/1QdIP5TEDALJnnpqwjXwvL1J_GoseTK9D/view?usp=share_link) to `DeepSORVF/deep_sort/deep_sort/deep/checkpoint/` folder.
-* Save [YOLOX-final.pth](https://drive.google.com/file/d/1mhah7ZzP8oAUuSMR96Or9UvqkXe-AMuS/view?usp=share_link) to `DeepSORVF/detection_yolox/model_data/` folder.
-* Set data dir by `parser.add_argument("--data_path", type=str, default = './clip-01/', help='data path')`.
-* Run `main.py`.
+## 実行方法
+* [ckpt.t7](https://drive.google.com/file/d/1QdIP5TEDALJnnpqwjXwvL1J_GoseTK9D/view?usp=share_link) を `DeepSORVF/deep_sort/deep_sort/deep/checkpoint/` フォルダに保存する。
+* [YOLOX-final.pth](https://drive.google.com/file/d/1mhah7ZzP8oAUuSMR96Or9UvqkXe-AMuS/view?usp=share_link) を `DeepSORVF/detection_yolox/model_data/` フォルダに保存する。
+* `parser.add_argument("--data_path", type=str, default = './clip-01/', help='data path')` でデータのディレクトリを設定する。
+* `main.py` を実行する。
 
 
-#### `draw_org.py` is used to simultaneously visualize the ais-based trajectory (blue line), target detection box (red box), and fusion results (black text). It can be enabled by modifying `import draw` in `main.py` to `import draw_org`.
-#### Test Data: [clip-01](https://drive.google.com/file/d/1Bns1jAW1ImL-FeCQBvIUcrO0hjYLIB5K/view?usp=share_link)
+#### `draw_org.py` は、AISベースの軌跡(青線)、物標検出ボックス(赤枠)、融合結果(黒文字)を同時に可視化するために使用する。`main.py` 内の `import draw` を `import draw_org` に変更することで有効化できる。
+#### テストデータ: [clip-01](https://drive.google.com/file/d/1Bns1jAW1ImL-FeCQBvIUcrO0hjYLIB5K/view?usp=share_link)
 
-## FVessel: Benchmark Dataset for Vessel Detection, Tracking, and Data Fusion
+## FVessel: 船舶検出・追跡・データ融合のためのベンチマークデータセット
 
-The [FVessel](https://github.com/gy65896/FVessel) benchmark dataset is used to evaluate the reliability of AIS and video data fusion algorithms, which mainly contains 26 videos and the corresponding AIS data captured by the HIKVISION DS-2DC4423IW-D dome camera and Saiyang AIS9000-08 Class-B AIS receiver on the Wuhan Segment of the Yangtze River. To protect privacy, the MMSI for each vessel has been replaced with a random number in our dataset. As shown in Figure 1, these videos were captured under many locations (e.g., bridge region and riverside) and various weather conditions (e.g., sunny, cloudy, and low-light).
+[FVessel](https://github.com/gy65896/FVessel) ベンチマークデータセットは、AISと映像データの融合アルゴリズムの信頼性を評価するために用いられ、武漢市の長江区間でHIKVISION DS-2DC4423IW-Dドームカメラおよび賽揚(Saiyang) AIS9000-08 Class-B AIS受信機によって取得された26本の映像と対応するAISデータを主に含む。プライバシー保護のため、本データセットでは各船舶のMMSIを乱数に置き換えている。図1に示すように、これらの映像は橋梁付近や河岸などのさまざまな場所、晴天・曇天・低照度といったさまざまな気象条件下で撮影されたものである。
 
 ![Figure04_FVessel](https://user-images.githubusercontent.com/48637474/210925024-15dcbcbe-717b-47b6-ad4b-377d71141380.jpg)
-<div align=center><b>Some samples of the FVessel dataset, which contains massive images and videos captured on the bridge region and riverside under sunny, cloudy, and low-light conditions.</b></div>
+<div align=center><b>FVesselデータセットのサンプル例。晴天・曇天・低照度条件下で橋梁付近や河岸で撮影された大量の画像・映像を含む。</b></div>
 
-## Performance on [FVessel_V1.0](https://github.com/gy65896/FVessel)
+## [FVessel_V1.0](https://github.com/gy65896/FVessel) における性能
 <div align=center>
 
-|Name|MOFA (%)|IDP (%)|IDR (%)|IDF (%)
+|名前|MOFA (%)|IDP (%)|IDR (%)|IDF (%)
 | :-: | :-: | :-: | :-: | :-: |
 [video-01](https://github.com/gy65896/DeepSORVF/assets/48637474/a3d4a688-e97b-4fdf-b0be-ecc536e41134)|79.94|89.35|90.76|90.05
 [video-02](https://github.com/gy65896/DeepSORVF/assets/48637474/d52b4388-aa8f-4293-9898-2a7913d600df)|73.19|83.27|91.60|87.23
@@ -93,15 +181,15 @@ The [FVessel](https://github.com/gy65896/FVessel) benchmark dataset is used to e
 [video-24](https://github.com/gy65896/DeepSORVF/assets/48637474/51dba4d0-89fe-4d00-a755-2d49b67da62e)|94.70|98.34|96.33|97.32
 [video-25](https://github.com/gy65896/DeepSORVF/assets/48637474/249de603-b688-4751-9cfc-3f0d523b57d5)|91.49|97.66|93.73|95.66
 [video-26](https://github.com/gy65896/DeepSORVF/assets/48637474/6f1eb804-b453-4995-91db-b08885ffbc4a)|97.44|99.11|98.32|98.72
-Average |91.13|95.90|95.41|95.59|...
+平均 |91.13|95.90|95.41|95.59|...
 
 </div>
 
-## Acknowledgements
+## 謝辞
 
-We deeply thank **Jianlong Su** from the School of Computer and Artificial Intelligence in Wuhan University of Technology who performs the data acquisition and algorithm implementation works.
+データ収集およびアルゴリズム実装作業を行っていただいた、武漢理工大学コンピュータ・人工知能学院の**Jianlong Su**氏に深く感謝する。
 
-## Citation
+## 引用
 
 ```
 @article{guo2023asynchronous,
@@ -115,9 +203,9 @@ We deeply thank **Jianlong Su** from the School of Computer and Artificial Intel
 }
 ```
 
-#### The DeepSORVF is available for non-commercial research purposes only. If you have any questions, please get in touch with me (guoyu65896@gmail.com).
+#### DeepSORVFは非商用の研究目的でのみ利用可能である。ご質問がある場合は、私(guoyu65896@gmail.com)までご連絡いただきたい。
 
-## Reference
+## 参考文献
 
 https://github.com/bubbliiiing/yolox-pytorch
 
