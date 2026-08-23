@@ -156,6 +156,18 @@ changes there over refactors.
   including by the repo owner, is rejected after this runs** — verified 2026-08-23 via
   `gh api repos/<repo>/rules/branches/main`, which is the reliable check: `git push --dry-run` does
   **not** trigger GitHub's server-side ruleset evaluation, so a passing dry-run proves nothing here.
+* **Squash-merging a PR needs an explicit `--subject`/`--body ""`.** GitHub's merge/squash operation
+  runs server-side and never invokes lefthook/commitlint, so a plain `gh pr merge --squash` on a
+  multi-commit PR defaults to `<PR title> (#<PR number>)` as the subject and a bullet list of the
+  squashed commits as the body — breaking both the scoped-type format and the title-only rule. This
+  actually happened once (PR #8 → `a8686dd` on `main` has a doubled `(#7) (#8)` reference and a
+  non-empty body; left as-is rather than rewriting protected `main` history for a cosmetic fix).
+  Always merge with:
+  ```
+  gh pr merge <number> --squash --delete-branch \
+    --subject "type(scope): 説明 (#issue番号)" \
+    --body ""
+  ```
 
 ## Architecture decision records
 
