@@ -31,7 +31,13 @@
       "Read(~/.aws/**)",
       "Edit(~/.aws/**)",
       "Read(/**/.env*)",
-      "Edit(/**/.env*)"
+      "Edit(/**/.env*)",
+      "Read(/**/.credentials*)",
+      "Edit(/**/.credentials*)",
+      "Read(/**/secrets/**)",
+      "Edit(/**/secrets/**)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
     ]
   }
 }

@@ -87,24 +87,41 @@ changes there over refactors.
 * Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
   dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
   allowlist/credentials config.
-* **Known bug, unresolved: `sandbox.network.allowedDomains` and `sandbox.credentials` are not
-  actually enforced.** Confirmed by direct reproduction on Claude Code 2.1.241, both on the bare host
-  and inside the devcontainer (not container-specific): a sandboxed Bash `curl` reaches domains
-  outside the allowlist (`example.com`, `www.google.com`) exactly like `github.com` — `curl -v` shows
-  every `CONNECT` through the sandbox's local proxy (`https_proxy=...@localhost:3128`) getting an
-  unconditional `200 Connection Established` with no per-domain filtering. Likewise, a dummy `.env*`
-  file placed outside the repo (e.g. in a scratch directory) was read back cleanly by a sandboxed
-  `cat` — `sandbox.credentials` did not block it. (Writing a `.env*` file *inside* this repo's root
-  was blocked, but by a separate, coarser permission-prompt layer that intercepts Bash commands
-  referencing dotenv-like paths — unrelated to this repo's `sandbox.credentials` config, and not a
-  substitute for it: it doesn't cover reads, and doesn't cover paths outside the repo.) Bubblewrap's
-  own filesystem/mount-namespace isolation is confirmed working (`SANDBOX_RUNTIME=1`, a distinct mount
-  namespace) — only the network and credentials filters on top of it are broken. **Do not currently
-  rely on the network allowlist or `.env*`/`~/.ssh`/`~/.aws` protection as an actual security
-  boundary** — treat any Bash command as if it can reach the open internet and read any file the OS
-  user can read. Likely a Claude Code product bug rather than a misconfiguration in this repo (worth
-  reporting via `/help`'s feedback link) — re-test after upgrading Claude Code before trusting this
-  boundary again.
+* **Known bug, unresolved: `sandbox.network.allowedDomains` is not actually enforced.** Confirmed by
+  direct reproduction on Claude Code 2.1.241, both on the bare host and inside the devcontainer (not
+  container-specific): a sandboxed Bash `curl` reaches domains outside the allowlist (`example.com`,
+  `www.google.com`) exactly like `github.com` — `curl -v` shows every `CONNECT` through the sandbox's
+  local proxy (`https_proxy=...@localhost:3128`) getting an unconditional `200 Connection Established`
+  with no per-domain filtering. Bubblewrap's own filesystem/mount-namespace isolation is confirmed
+  working (`SANDBOX_RUNTIME=1`, a distinct mount namespace) — only this network filter on top of it is
+  broken. **Mitigation in place:** `permissions.deny` hard-denies `Bash(curl:*)` and `Bash(wget:*)`
+  outright (pattern borrowed from
+  [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json),
+  which skips domain-allowlist sandboxing entirely and denies the raw HTTP client tools instead) —
+  confirmed working (both commands are now denied before they run, regardless of destination host).
+  This is a *narrower* boundary than a real domain sandbox, not a fix for it: it only stops `curl`/
+  `wget` invocations specifically — it does not stop egress via other tools (`git clone` to an
+  arbitrary host, Python's `requests`/`urllib`, `nc`, `scp`, `rsync`, …). Treat "no domain-level
+  network sandbox" as the honest baseline and re-test `sandbox.network.allowedDomains` after
+  upgrading Claude Code before trusting it as a real boundary again; report via `/help`'s feedback
+  link.
+* **`sandbox.credentials` / matching `permissions.deny` `Read`/`Edit` globs ARE enforced, but only
+  for paths inside the project directory.** Verified directly: a file created (via sandboxed Bash)
+  under `secrets/` or named `.credentials*` at the repo root became unreadable by both the `Read` tool
+  (`"File is in a directory that is denied by your permission settings"`) and by a sandboxed `cat`
+  (OS-level `Permission denied` — an actual bind-mount block, not just a tool-level refusal); removing
+  it even failed with `Permission denied`/`Device or resource busy` while the mount was active,
+  including with the sandbox explicitly disabled. Creating a `.env*` file at the repo root was refused
+  by every tool tried (`Write`, Bash redirection, even sandbox-disabled Bash) before it could even be
+  written. The one earlier test that looked like a `sandbox.credentials` failure — a dummy `.env` file
+  placed *outside* the repo, in an OS scratch/temp directory, which a sandboxed `cat` read back fine —
+  was a flawed test, not evidence of a broken mechanism: these path-glob rules are scoped to the
+  project directory, so anything written outside it (e.g. this session's own scratchpad temp dir under
+  `/tmp`) is simply out of scope for them, not a bypass of them. Do rely on these protections for
+  paths under the project root; do not assume they cover paths elsewhere on disk.
+* `permissions.deny` also blocks `/**/.credentials*` and `/**/secrets/**` (Read+Edit), matching the
+  same reference repo above, as defense-in-depth even though this repo has neither today — same
+  rationale as the pre-existing broad `.env*` block below.
 * `.devcontainer/devcontainer.json`'s `runArgs` disable Docker's default AppArmor and seccomp
   confinement for the whole devcontainer (`--security-opt apparmor=unconfined` and
   `--security-opt seccomp=unconfined`) — bubblewrap needs both to create the nested user/mount
