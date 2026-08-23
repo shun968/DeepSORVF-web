@@ -5,6 +5,8 @@ pre-commit:
     - name: adr-format
       glob: "docs/adr/*.md"
       run: scripts/check-adr-format.sh {staged_files}
+    - name: no-secrets
+      run: scripts/check-no-secrets.sh {staged_files}
 
 commit-msg:
   jobs:
