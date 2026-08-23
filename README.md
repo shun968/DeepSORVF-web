@@ -127,7 +127,7 @@ C4Component
 Claude Codeなどのエージェントで本リポジトリのコード編集・コマンド実行を行う場合は、`.devcontainer/` のdevContainerを介して起動すること。ホスト上で直接 `claude` を起動した場合、後述するアクセス制御（サンドボックス）の保証が効かない。
 
 * VS Codeの「Reopen in Container」、または `docker exec -it <container> claude` でコンテナ内から起動する。
-* コンテナ内では `.claude/settings.json`（コミット済み・プロジェクト共有設定）により、Bashコマンドがbubblewrap (`bwrap`) ベースのサンドボックスの中で実行される。`~/.ssh`・`~/.aws`・`.env*`・`secrets/**` 等の秘密情報ファイルへのアクセス拒否はプロジェクト直下で機能する。一方、到達可能な外部ホストをアローリスト方式（GitHub/npm/PyPI/NuGet等のみ許可）に制限する設定は現時点では機能しておらず、代わりに `curl`/`wget` コマンド自体を拒否する形で緩和している(他の手段でのネットワークアクセスは防げない限定的な緩和策)。詳細は `CLAUDE.md` の「Dev container」節を参照。
+* コンテナ内では `.claude/settings.json`（コミット済み・プロジェクト共有設定）により、Bashコマンドがbubblewrap (`bwrap`) ベースのサンドボックスの中で実行され、到達可能な外部ホストやアクセス可能なファイルが制限される。設定項目の詳細は `CLAUDE.md` の「Dev container」節を参照。
 * `.devcontainer/devcontainer.json` の `runArgs` で、devcontainer自体をDockerの既定のAppArmor/seccomp閉じ込めから外している（bubblewrapが必要とするnamespace/mount操作のため）。追加のホスト側セットアップは不要。詳細は `CLAUDE.md` の「Dev container」節を参照。
 
 ## 動作環境

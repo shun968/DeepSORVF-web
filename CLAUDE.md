@@ -76,7 +76,10 @@ changes there over refactors.
   more directories — from sandboxed commands (`sandbox.credentials`). `gh` is listed in
   `sandbox.excludedCommands` and runs unsandboxed, since sandboxing its credential file
   (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required by this file's Git conventions
-  below — everything else runs inside the sandbox.
+  below — everything else runs inside the sandbox. `permissions.deny` adds a second layer: it denies
+  `Bash(curl:*)`/`Bash(wget:*)` outright, and `Read`/`Edit` on `.credentials*`/`secrets/**` alongside
+  the existing `.env*`/`~/.ssh`/`~/.aws` entries (pattern from
+  [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json)).
 * `sandbox.credentials` deny rules can't be selectively re-opened (a `deny` only ever narrows access
   in every settings scope, with no counterpart `allow`), so blocking every `.env*` file blocks
   non-production ones too (`.env.test`, `.env.development`, …), not just `.env.production`. This repo
@@ -87,20 +90,6 @@ changes there over refactors.
 * Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
   dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
   allowlist/credentials config.
-* **Known bug, unresolved: `sandbox.network.allowedDomains` is not actually enforced** — sandboxed
-  commands can reach any host, not just the allowlisted ones. Mitigated via `permissions.deny`
-  hard-denying `Bash(curl:*)` and `Bash(wget:*)` outright (pattern from
-  [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline/blob/main/.claude/settings.json),
-  which skips domain-allowlist sandboxing entirely and denies the raw HTTP client tools instead). This
-  is narrower than a real domain sandbox: it only stops `curl`/`wget` specifically, not egress via
-  other tools (`git clone` to an arbitrary host, Python's `requests`/`urllib`, `nc`, `scp`, `rsync`,
-  …). Re-test `sandbox.network.allowedDomains` after upgrading Claude Code before trusting it again;
-  report via `/help`'s feedback link.
-* `sandbox.credentials` and the matching `permissions.deny` `Read`/`Edit` globs (`.env*`, `~/.ssh`,
-  `~/.aws`, `.credentials*`, `secrets/**`) work correctly for paths inside the project directory, but
-  do not cover paths elsewhere on disk (e.g. a scratch/temp directory outside the repo). `permissions.
-  deny` blocks `/**/.credentials*` and `/**/secrets/**` (Read+Edit) as defense-in-depth alongside
-  `.env*`, matching the reference repo above, even though this repo has neither today.
 * `.devcontainer/devcontainer.json`'s `runArgs` disable Docker's default AppArmor and seccomp
   confinement for the whole devcontainer (`--security-opt apparmor=unconfined` and
   `--security-opt seccomp=unconfined`) — bubblewrap needs both to create the nested user/mount
