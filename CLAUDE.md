@@ -72,10 +72,18 @@ changes there over refactors.
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
   (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet; `strictAllowlist: true` denies anything
   else outright rather than prompting), and blocks `~/.ssh`, `~/.aws`, and any `.env*` file anywhere
-  in the repo (including production-oriented ones like `.env.production`) from sandboxed commands
-  (`sandbox.credentials`). `gh` is listed in `sandbox.excludedCommands` and runs unsandboxed, since
-  sandboxing its credential file (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required
-  by this file's Git conventions below — everything else runs inside the sandbox.
+  in the repo — `**/.env*` already covers a bare `.env` at the repo root, since `**` matches zero or
+  more directories — from sandboxed commands (`sandbox.credentials`). `gh` is listed in
+  `sandbox.excludedCommands` and runs unsandboxed, since sandboxing its credential file
+  (`~/.config/gh/hosts.yml`) would break the `gh` CLI usage required by this file's Git conventions
+  below — everything else runs inside the sandbox.
+* `sandbox.credentials` deny rules can't be selectively re-opened (a `deny` only ever narrows access
+  in every settings scope, with no counterpart `allow`), so blocking every `.env*` file blocks
+  non-production ones too (`.env.test`, `.env.development`, …), not just `.env.production`. This repo
+  has no `.env` files or test suite yet, so the broad block is deliberate; if a future test suite
+  needs to read a non-secret `.env.*` config file inside the sandbox, narrow the
+  `sandbox.credentials.files` glob in `.claude/settings.json` at that point (e.g. list `.env`,
+  `.env.local`, `.env*.production*` explicitly) rather than leaving it broad.
 * Run `/sandbox` inside a session to check whether `bubblewrap`/`socat` (the sandbox's Linux
   dependencies, installed in `.devcontainer/Dockerfile`) are present and to inspect the effective
   allowlist/credentials config.
