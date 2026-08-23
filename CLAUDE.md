@@ -125,6 +125,12 @@ changes there over refactors.
   private-key headers, generic `*_key`/`*_token` assignments) and blocks the commit on a match. This
   is deliberately simple pattern-matching, not a real secrets scanner (e.g. gitleaks/detect-secrets)
   — it won't catch secrets in shapes the patterns don't cover.
+* Policy: everything an agent runs in this repo — including any future test suite — is expected to
+  execute inside the access-controlled sandbox above by default. The only exceptions are operations
+  that are destructive (force-push, history rewrite, deleting branches/files outside what was asked)
+  or that publish something externally (pushing, opening/merging PRs, posting comments) — those
+  already require explicit human confirmation per Claude Code's own permission system, independent of
+  `sandbox.*`, and that stays true regardless of what `sandbox.*` allows.
 * Not yet addressed from issue #7: per-Skill command profiles (Claude Code has no such mechanism);
   a policy for sandboxed test execution, and a limited-injection mechanism for secret-requiring tests
   (both deferred together — this repo has no test suite yet, and none of its current code makes
