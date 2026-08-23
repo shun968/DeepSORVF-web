@@ -137,6 +137,34 @@ changes there over refactors.
   Team/Enterprise.
 * Prefer `gh issue develop <number> --name <type>/<number>-<slug> --checkout` to create branches, since
   it also links the branch to the issue in GitHub's UI.
+* **Commit messages use [Conventional Commits](https://www.conventionalcommits.org/), title only** —
+  e.g. `feat(devcontainer): Claude Code CLIを追加する (#7)`, `fix(sandbox): ...`. No body, no footer:
+  `commitlint.config.js` (`body-empty`/`footer-empty: always`) rejects both, and `references-empty:
+  never` requires an issue reference (the `(#N)` suffix) in the title itself. This means commits in
+  this repo do **not** get a trailing `Co-Authored-By`/`Claude-Session` footer — that convention is
+  overridden here. Enforced via lefthook's `commit-msg` hook (`npx commitlint --edit`), which needs
+  `npm install` run once (installs `@commitlint/cli` and `lefthook` from `package.json`; the dev
+  container's Node.js feature makes `npx` available for this). Convention and enforcement setup
+  ported from [shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline).
+* **This repo follows [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow)**:
+  `main` is always deployable, all changes land via a PR from a feature branch, and the feature branch
+  is deleted after merge. `scripts/setup-github-flow-branch-protection.sh` provisions this on the
+  GitHub side (idempotent — re-run after changing it): sets `delete_branch_on_merge: true`, and creates
+  a `github-flow-main-protection` ruleset on `main` with `pull_request` (PR required, 0 mandatory
+  approvals — solo-dev friendly, just forces the PR path), `non_fast_forward` (no force-push),
+  `deletion` (can't delete `main`), and `required_linear_history`. **Direct `git push` to `main`,
+  including by the repo owner, is rejected after this runs** — verified 2026-08-23 via
+  `gh api repos/<repo>/rules/branches/main`, which is the reliable check: `git push --dry-run` does
+  **not** trigger GitHub's server-side ruleset evaluation, so a passing dry-run proves nothing here.
+
+## Architecture decision records
+
+Technical decisions (e.g. why the dev container is built the way it is, why GitHub's branch-naming
+ruleset couldn't be used) belong in `docs/adr/` as Nygard-format ADRs — see the `adr` skill
+(`.claude/skills/adr/SKILL.md`, also ported from
+[shun968/marketing-data-pipeline](https://github.com/shun968/marketing-data-pipeline)) for the
+template, status vocabulary, and update rules. `scripts/check-adr-format.sh` enforces the format via
+lefthook's `pre-commit` hook whenever a file under `docs/adr/` is staged.
 
 ## Localization
 

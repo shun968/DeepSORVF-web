@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Node.js (commitlint/lefthook tooling)
+node_modules/
+npm-debug.log*
+
+# Claude Code local settings (machine-specific permissions)
+.claude/settings.local.json
