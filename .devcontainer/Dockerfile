@@ -28,4 +28,10 @@ RUN useradd --create-home --shell /bin/bash vscode \
     && mkdir -p /home/vscode/.claude \
     && chown vscode:vscode /home/vscode/.claude
 USER vscode
+
+RUN curl -fsSL https://ntn.dev | bash \
+    && mkdir -p /home/vscode/.local/bin \
+    && NTN_BIN="$(bash -lc 'command -v ntn')" \
+    && [ "$NTN_BIN" = "/home/vscode/.local/bin/ntn" ] || ln -sf "$NTN_BIN" /home/vscode/.local/bin/ntn
+
 WORKDIR /workspace
