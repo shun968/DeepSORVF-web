@@ -44,6 +44,11 @@ jobs:
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.sources="architectures/layered/src" \
             /d:sonar.tests="architectures/layered/tests" \
-            /d:sonar.exclusions="**/bin/**,**/obj/**"
+            /d:sonar.exclusions="**/bin/**,**/obj/**" \
+            /d:sonar.cs.opencover.reportsPaths="architectures/layered/tests/Domain.Tests/coverage.opencover.xml"
           dotnet build architectures/layered/LayeredArchitecture.sln
+          dotnet test architectures/layered/tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=opencover \
+            /p:CoverletOutput=./coverage.opencover.xml
           dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"

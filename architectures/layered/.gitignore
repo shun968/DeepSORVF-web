@@ -4,3 +4,6 @@ obj/
 
 # Coverage reports (dotnet test --collect + ReportGenerator output)
 TestResults/
+
+# OpenCover report generated for SonarCloud CI (see .github/workflows/sonarcloud.yml)
+coverage.opencover.xml
