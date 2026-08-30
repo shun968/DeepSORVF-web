@@ -23,10 +23,12 @@ tasks:
       - dotnet test {{.SOLUTION}}
 
   test:domain:unit:
-    desc: Run Domain layer unit tests with coverage (lcov.info viewable in Coverage Gutters) and generate a shareable HTML report via genhtml (TestResults/Domain.Tests/report/index.html)
+    desc: Run Domain layer unit tests with line/branch/method coverage, failing if any falls below the threshold (default 100); lcov.info viewable in Coverage Gutters, and a shareable HTML report is generated via genhtml (TestResults/Domain.Tests/report/index.html)
+    vars:
+      THRESHOLD: "100"
     cmds:
-      - dotnet test {{.DOMAIN_TEST_PROJ}} --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory {{.COVERAGE_DIR}}/Domain.Tests
-      - genhtml $(find {{.COVERAGE_DIR}}/Domain.Tests -name coverage.info) -o {{.COVERAGE_DIR}}/Domain.Tests/report
+      - dotnet test {{.DOMAIN_TEST_PROJ}} /p:CollectCoverage=true /p:CoverletOutputFormat=\"lcov,cobertura\" /p:CoverletOutput=../../{{.COVERAGE_DIR}}/Domain.Tests/ /p:Threshold={{.THRESHOLD}} /p:ThresholdType=\"line,branch,method\" /p:ThresholdStat=total
+      - genhtml {{.COVERAGE_DIR}}/Domain.Tests/coverage.info -o {{.COVERAGE_DIR}}/Domain.Tests/report
 
   # 結合テストを追加する際は、xUnitプロジェクトを <Layer>.IntegrationTests という名前で
   # tests/ 配下に作成し、test:domain:integration を追加すること。
