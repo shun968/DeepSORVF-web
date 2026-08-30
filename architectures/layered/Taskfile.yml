@@ -1,0 +1,38 @@
+version: "3"
+
+vars:
+  SOLUTION: LayeredArchitecture.sln
+  DOMAIN_PROJ: src/Domain/LayeredArchitecture.Domain.csproj
+  DOMAIN_TEST_PROJ: tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj
+  COVERAGE_DIR: TestResults
+
+tasks:
+  build:
+    desc: Build the whole solution in one build (all layers together)
+    cmds:
+      - dotnet build {{.SOLUTION}}
+
+  build:domain:
+    desc: Compile the Domain layer only
+    cmds:
+      - dotnet build {{.DOMAIN_PROJ}}
+
+  test:
+    desc: Run tests for all layers
+    cmds:
+      - dotnet test {{.SOLUTION}}
+
+  test:domain:unit:
+    desc: Run Domain layer unit tests with coverage (lcov.info viewable in Coverage Gutters) and generate a shareable HTML report via genhtml (TestResults/Domain.Tests/report/index.html)
+    cmds:
+      - dotnet test {{.DOMAIN_TEST_PROJ}} --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory {{.COVERAGE_DIR}}/Domain.Tests
+      - genhtml $(find {{.COVERAGE_DIR}}/Domain.Tests -name coverage.info) -o {{.COVERAGE_DIR}}/Domain.Tests/report
+
+  # 結合テストを追加する際は、xUnitプロジェクトを <Layer>.IntegrationTests という名前で
+  # tests/ 配下に作成し、test:domain:integration を追加すること。
+
+  clean:
+    desc: Clean all build outputs
+    cmds:
+      - dotnet clean {{.SOLUTION}}
+      - rm -rf {{.COVERAGE_DIR}}
