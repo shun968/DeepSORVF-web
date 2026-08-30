@@ -15,3 +15,13 @@ npm-debug.log*
 # .NET build output
 bin/
 obj/
+
+# Secrets
+.env
+
+# VS Code (keep only shared, non-machine-specific config)
+.vscode/*
+!.vscode/extensions.json
+
+# dotnet CLI's file-based-app discovery cache (VS Code C# tooling; machine-local, auto-regenerated)
+/dotnet/
