@@ -8,6 +8,11 @@ pre-commit:
     - name: no-secrets
       run: scripts/check-no-secrets.sh {staged_files}
 
+prepare-commit-msg:
+  jobs:
+    - name: suggest-commit-msg
+      run: scripts/suggest-commit-msg.sh {1}
+
 commit-msg:
   jobs:
     - name: commitlint

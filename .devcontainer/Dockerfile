@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         socat \
         libgl1 \
         libglib2.0-0 \
+        neovim \
     && rm -rf /var/lib/apt/lists/*
 
 # gh is required by this repo's Git conventions (branch creation, PR merge — see
