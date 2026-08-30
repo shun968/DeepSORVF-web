@@ -1,0 +1,27 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Domain", "src\Domain\LayeredArchitecture.Domain.csproj", "{F50CD898-3C17-4807-9672-D3870DEDD45D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Domain.Tests", "tests\Domain.Tests\LayeredArchitecture.Domain.Tests.csproj", "{A1B2C3D4-E5F6-4789-9ABC-DEF012345678}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F50CD898-3C17-4807-9672-D3870DEDD45D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F50CD898-3C17-4807-9672-D3870DEDD45D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F50CD898-3C17-4807-9672-D3870DEDD45D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F50CD898-3C17-4807-9672-D3870DEDD45D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-4789-9ABC-DEF012345678}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-4789-9ABC-DEF012345678}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-4789-9ABC-DEF012345678}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-4789-9ABC-DEF012345678}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,6 @@
+# .NET build output
+bin/
+obj/
+
+# Coverage reports (dotnet test --collect + ReportGenerator output)
+TestResults/
