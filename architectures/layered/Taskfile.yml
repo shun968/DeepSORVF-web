@@ -36,6 +36,13 @@ tasks:
     cmds:
       - dotnet format {{.SOLUTION}} --verify-no-changes --severity warn
 
+  metrics:
+    desc: Measure cyclomatic complexity per method in the Domain layer and fail if any method exceeds the threshold (default 10)
+    cmds:
+      - dotnet run --project tools/ComplexityAnalyzer -- {{.DOMAIN_PROJ_DIR}}
+    vars:
+      DOMAIN_PROJ_DIR: src/Domain
+
   clean:
     desc: Clean all build outputs
     cmds:
