@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
         neovim \
+        lcov \
     && rm -rf /var/lib/apt/lists/*
 
 # gh is required by this repo's Git conventions (branch creation, PR merge — see
@@ -34,5 +35,8 @@ RUN curl -fsSL https://ntn.dev | bash \
     && mkdir -p /home/vscode/.local/bin \
     && NTN_BIN="$(bash -lc 'command -v ntn')" \
     && [ "$NTN_BIN" = "/home/vscode/.local/bin/ntn" ] || ln -sf "$NTN_BIN" /home/vscode/.local/bin/ntn
+
+RUN mkdir -p /home/vscode/.local/bin \
+    && curl -sL https://taskfile.dev/install.sh | sh -s -- -b /home/vscode/.local/bin
 
 WORKDIR /workspace

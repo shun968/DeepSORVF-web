@@ -9,7 +9,10 @@
   ],
   "features": {
     "ghcr.io/devcontainers/features/node:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "8.0"
+    }
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "workspaceFolder": "/workspace",
@@ -23,5 +26,5 @@
   "remoteEnv": {
     "PATH": "/home/vscode/.local/bin:${containerEnv:PATH}"
   },
-  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install && pip install --user -r /workspace/requirements.txt && bash /workspace/.devcontainer/wrap-claude-cli.sh"
+  "postCreateCommand": "git config --global --add safe.directory /workspace && lefthook install && pip install --user -r /workspace/requirements.txt && dotnet restore /workspace/architectures/layered/LayeredArchitecture.sln && bash /workspace/.devcontainer/wrap-claude-cli.sh"
 }
