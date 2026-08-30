@@ -13,6 +13,9 @@ pre-commit:
     - name: dotnet-test-layered
       glob: "architectures/layered/**/*.{cs,csproj}"
       run: dotnet test architectures/layered/LayeredArchitecture.sln
+    - name: dotnet-metrics-layered
+      glob: "architectures/layered/src/**/*.cs"
+      run: dotnet run --project architectures/layered/tools/ComplexityAnalyzer -- architectures/layered/src/Domain
 
 prepare-commit-msg:
   jobs:
