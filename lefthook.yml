@@ -7,6 +7,9 @@ pre-commit:
       run: scripts/check-adr-format.sh {staged_files}
     - name: no-secrets
       run: scripts/check-no-secrets.sh {staged_files}
+    - name: dotnet-lint-layered
+      glob: "architectures/layered/**/*.{cs,csproj}"
+      run: dotnet format architectures/layered/LayeredArchitecture.sln --verify-no-changes --severity warn
     - name: dotnet-test-layered
       glob: "architectures/layered/**/*.{cs,csproj}"
       run: dotnet test architectures/layered/LayeredArchitecture.sln

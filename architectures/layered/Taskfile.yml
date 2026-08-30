@@ -31,6 +31,11 @@ tasks:
   # 結合テストを追加する際は、xUnitプロジェクトを <Layer>.IntegrationTests という名前で
   # tests/ 配下に作成し、test:domain:integration を追加すること。
 
+  lint:
+    desc: Lint the whole solution (formatting, code style, analyzers) without modifying files
+    cmds:
+      - dotnet format {{.SOLUTION}} --verify-no-changes --severity warn
+
   clean:
     desc: Clean all build outputs
     cmds:
