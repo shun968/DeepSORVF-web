@@ -12,7 +12,11 @@
         "pypi.org",
         "files.pythonhosted.org",
         "nuget.org",
-        "*.nuget.org"
+        "*.nuget.org",
+        "api.notion.com",
+        "*.notion.com",
+        "notion.so",
+        "*.notion.so"
       ]
     },
     "credentials": {

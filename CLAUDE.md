@@ -82,7 +82,7 @@ changes there over refactors.
   PyTorch 1.13.1) require it.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
   (`sandbox.enabled`), restricts sandboxed commands to an explicit host allowlist
-  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet), and blocks `~/.ssh`, `~/.aws`, and any
+  (`sandbox.network.allowedDomains` — GitHub, npm, PyPI, NuGet, Notion), and blocks `~/.ssh`, `~/.aws`, and any
   `.env*` file anywhere in the repo — `**/.env*` already covers a bare `.env` at the repo root, since
   `**` matches zero or more directories — from sandboxed commands (`sandbox.credentials`). `gh` (used
   by this file's Git conventions below, and installed in `.devcontainer/Dockerfile` from GitHub's apt
@@ -120,6 +120,14 @@ changes there over refactors.
 * When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
   `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
   allowlist in `.claude/settings.json`.
+* `.devcontainer/Dockerfile` installs the Notion CLI (`ntn`, `curl -fsSL https://ntn.dev | bash`,
+  which redirects to `developers.notion.com/cli`) as the `vscode` user, and symlinks it into
+  `/home/vscode/.local/bin` if the installer places it elsewhere. `ntn login` is deliberately not run
+  from the Dockerfile or any automated script — it opens a browser to authorize the Notion workspace
+  and stores credentials in the OS keychain, so it must be run interactively by whoever uses the
+  container. `api.notion.com`/`notion.so` are in `sandbox.network.allowedDomains` so `ntn` can reach
+  Notion from inside the sandbox once logged in. See the `notion-docs` skill
+  (`.claude/skills/notion-docs/SKILL.md`) for how requirements/design docs are managed through it.
 * `scripts/check-no-secrets.sh` (lefthook `pre-commit` job `no-secrets`) greps the *added* lines of
   each staged file's diff for common secret shapes (AWS/Google/GitHub/Slack/OpenAI-style keys, PEM
   private-key headers, generic `*_key`/`*_token` assignments) and blocks the commit on a match. This
@@ -151,6 +159,16 @@ lefthook (`lefthook install` once per checkout, automatic inside the dev contain
 Decisions about DeepSORVF's own architecture (the fusion pipeline, tracking algorithm, etc. — not
 dev-environment or repo-management tooling) live in `docs/adr/` (Nygard format) — see the `adr` skill
 (`.claude/skills/adr/SKILL.md`) for the template and update rules.
+
+## Requirements / basic design (Notion)
+
+Requirements definitions (要件定義) and basic design docs (基本設計) are managed in Notion, not as
+repo Markdown — see the `notion-docs` skill (`.claude/skills/notion-docs/SKILL.md`) for the
+index-page-rooted tree templates and the `ntn` CLI commands used to create/update them. `ntn login`
+is a manual, interactive prerequisite (see the Dev container section above); Claude does not attempt
+it. No page-ID index is kept in the repo — each use of the skill asks which Notion teamspace (and its
+index page, which the skill uses as the sole entry point instead of searching) is the target, and
+walks that page's tree live via `ntn` rather than trusting a possibly-stale local record.
 
 ## Localization
 
