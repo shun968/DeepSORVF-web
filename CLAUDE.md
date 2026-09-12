@@ -139,21 +139,12 @@ changes there over refactors.
 
 ## Git conventions
 
-* Branch names: `<type>/<issue-number>-<slug>` (`feature`, `fix`, `docs`, `chore`, `refactor`, `test`),
-  e.g. `feature/7-sandbox-dev-environment`. Enforced by lefthook's `pre-commit` hook — run
-  `lefthook install` once per checkout (automatic inside the dev container).
-* Prefer `gh issue develop <number> --name <type>/<number>-<slug> --checkout` to create branches.
-* Commit messages: [Conventional Commits](https://www.conventionalcommits.org/), **title only** (no
-  body/footer — this repo does not use a trailing `Co-Authored-By`/`Claude-Session` footer), must
-  reference an issue, e.g. `feat(devcontainer): 説明 (#7)`. Enforced by commitlint via lefthook's
-  `commit-msg` hook — run `npm install` once per checkout.
-* This repo follows [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow):
-  `main` is protected (PR required, no force-push/deletion, linear history only) via
-  `scripts/setup-github-flow-branch-protection.sh`. Squash-merge PRs with explicit `--subject`/
-  `--body ""`:
-  ```
-  gh pr merge <number> --squash --delete-branch --subject "type(scope): 説明 (#issue番号)" --body ""
-  ```
+Branch naming, commit message format, and the PR/merge process are project rules, not Claude-Code
+guidance — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the authoritative rules. In short: branch
+names follow `<type>/<issue-number>-<slug>`, commits follow Conventional Commits (title only, must
+reference an issue), and PRs are squash-merged per GitHub Flow. Both are enforced mechanically by
+lefthook (`lefthook install` once per checkout, automatic inside the dev container) and commitlint
+(`npm install` once per checkout).
 
 ## Architecture decision records
 
