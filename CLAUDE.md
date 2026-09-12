@@ -126,8 +126,9 @@ changes there over refactors.
   from the Dockerfile or any automated script — it opens a browser to authorize the Notion workspace
   and stores credentials in the OS keychain, so it must be run interactively by whoever uses the
   container. `api.notion.com`/`notion.so` are in `sandbox.network.allowedDomains` so `ntn` can reach
-  Notion from inside the sandbox once logged in. See the `notion-docs` skill
-  (`.claude/skills/notion-docs/SKILL.md`) for how requirements/design docs are managed through it.
+  Notion from inside the sandbox once logged in. See the `managing-notion-docs` skill
+  (`.claude/skills/managing-notion-docs/SKILL.md`) for how requirements/design docs are managed
+  through it.
 * `scripts/check-no-secrets.sh` (lefthook `pre-commit` job `no-secrets`) greps the *added* lines of
   each staged file's diff for common secret shapes (AWS/Google/GitHub/Slack/OpenAI-style keys, PEM
   private-key headers, generic `*_key`/`*_token` assignments) and blocks the commit on a match. This
@@ -163,12 +164,13 @@ dev-environment or repo-management tooling) live in `docs/adr/` (Nygard format) 
 ## Requirements / basic design (Notion)
 
 Requirements definitions (要件定義) and basic design docs (基本設計) are managed in Notion, not as
-repo Markdown — see the `notion-docs` skill (`.claude/skills/notion-docs/SKILL.md`) for the
-index-page-rooted tree templates and the `ntn` CLI commands used to create/update them. `ntn login`
-is a manual, interactive prerequisite (see the Dev container section above); Claude does not attempt
-it. No page-ID index is kept in the repo — each use of the skill asks which Notion teamspace (and its
-index page, which the skill uses as the sole entry point instead of searching) is the target, and
-walks that page's tree live via `ntn` rather than trusting a possibly-stale local record.
+repo Markdown — see the `managing-notion-docs` skill (`.claude/skills/managing-notion-docs/SKILL.md`)
+for the index-page-rooted tree templates and the `ntn` CLI commands used to create/update them.
+`ntn login` is a manual, interactive prerequisite (see the Dev container section above); Claude does
+not attempt it. No page-ID index is kept in the repo — each use of the skill asks which Notion
+teamspace (and its index page, which the skill uses as the sole entry point instead of searching) is
+the target, and walks that page's tree live via `ntn` rather than trusting a possibly-stale local
+record.
 
 ## Localization
 
