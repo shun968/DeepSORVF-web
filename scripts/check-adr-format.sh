@@ -9,7 +9,7 @@ set -euo pipefail
 #   その目的を壊しかねないため、書式は機械的に固定する。
 #
 # 書式の定義はどこにあるか:
-#   `adr` スキル(.claude/skills/adr)。テンプレート・ステータス語彙・
+#   `managing-adrs` スキル(.claude/skills/managing-adrs)。テンプレート・ステータス語彙・
 #   採用済みADRの不変性の運用まで含めて、そちらが正。
 #   このスクリプトはその一部（機械的に判定できる書式だけ）を検査する。
 #
@@ -87,6 +87,6 @@ done
 
 if [ "${violations}" -gt 0 ]; then
   echo "" >&2
-  echo "書式とテンプレートは .claude/skills/adr/SKILL.md を参照する。" >&2
+  echo "書式とテンプレートは .claude/skills/managing-adrs/SKILL.md を参照する。" >&2
   exit 1
 fi
