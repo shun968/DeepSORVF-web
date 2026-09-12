@@ -2,7 +2,7 @@
 
 このリポジトリへの変更手順・命名規則などのプロジェクトルールをまとめる。
 DeepSORVF自体のアーキテクチャ決定（融合パイプライン・追跡アルゴリズムなど）は対象外で、
-それらは [Nygard形式のADR](docs/adr/) に記録する（`.claude/skills/adr/SKILL.md` 参照）。
+それらは [Nygard形式のADR](docs/adr/) に記録する（`.claude/skills/managing-adrs/SKILL.md` 参照）。
 
 ## ブランチ
 

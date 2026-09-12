@@ -158,8 +158,8 @@ lefthook (`lefthook install` once per checkout, automatic inside the dev contain
 ## Architecture decision records
 
 Decisions about DeepSORVF's own architecture (the fusion pipeline, tracking algorithm, etc. — not
-dev-environment or repo-management tooling) live in `docs/adr/` (Nygard format) — see the `adr` skill
-(`.claude/skills/adr/SKILL.md`) for the template and update rules.
+dev-environment or repo-management tooling) live in `docs/adr/` (Nygard format) — see the
+`managing-adrs` skill (`.claude/skills/managing-adrs/SKILL.md`) for the template and update rules.
 
 ## Requirements / basic design (Notion)
 
