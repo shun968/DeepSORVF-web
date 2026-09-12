@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libglib2.0-0 \
         neovim \
         lcov \
+        jq \
     && rm -rf /var/lib/apt/lists/*
 
 # gh is required by this repo's Git conventions (branch creation, PR merge — see
