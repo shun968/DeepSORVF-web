@@ -35,13 +35,15 @@ public sealed class AisRecord
     // block only (the sub-check that needs no camera_para / previous-second state).
     // Not a general geometric law: lon in [0,180] / lat in [0,90] reflects the original
     // FVessel dataset's fixed Northern/Eastern-hemisphere deployment, and speed > 0.3kt
-    // is a "moving vessel only" business rule, not a sentinel check.
+    // is a "moving vessel only" business rule, not a sentinel check. Course/heading are
+    // range-checked (rather than excluding the Python encoder's exact -1/360 sentinels)
+    // to avoid floating-point equality comparisons while rejecting the same values, since
+    // a valid compass bearing is always in [0, 360).
     public bool IsValid =>
         Mmsi is >= 100_000_000 and <= 999_999_999
         && Longitude is >= 0 and <= 180
         && Latitude is >= 0 and <= 90
-        && CourseDegrees != -1
-        && CourseDegrees != 360
-        && HeadingDegrees != -1
+        && CourseDegrees is >= 0 and < 360
+        && HeadingDegrees is >= 0 and < 360
         && SpeedKnots > 0.3;
 }

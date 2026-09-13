@@ -77,21 +77,27 @@ public class AisRecordTests
     }
 
     [Fact]
-    public void IsValid_WithCourseSentinelMinusOne_ReturnsFalse()
+    public void IsValid_WithCourseBelowZero_ReturnsFalse()
     {
         Assert.False(CreateValid(courseDegrees: -1).IsValid);
     }
 
     [Fact]
-    public void IsValid_WithCourseSentinel360_ReturnsFalse()
+    public void IsValid_WithCourseAtOrAbove360_ReturnsFalse()
     {
         Assert.False(CreateValid(courseDegrees: 360).IsValid);
     }
 
     [Fact]
-    public void IsValid_WithHeadingSentinelMinusOne_ReturnsFalse()
+    public void IsValid_WithHeadingBelowZero_ReturnsFalse()
     {
         Assert.False(CreateValid(headingDegrees: -1).IsValid);
+    }
+
+    [Fact]
+    public void IsValid_WithHeadingAtOrAbove360_ReturnsFalse()
+    {
+        Assert.False(CreateValid(headingDegrees: 360).IsValid);
     }
 
     [Fact]
