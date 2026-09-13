@@ -59,7 +59,7 @@ public class AisServiceTests
     {
         var service = CreateService((Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]));
 
-        var visible = service.Process(AisDirectory, Camera, Start);
+        var visible = service.Process(AisDirectory, Camera, Start).Visible;
 
         var projected = Assert.Single(visible);
         Assert.Equal(431234567, projected.Record.Mmsi);
@@ -72,7 +72,7 @@ public class AisServiceTests
     {
         var service = CreateService((Start, [VesselAt(431555001, bearingDegrees: 0, distanceMeters: 900, Start)]));
 
-        Assert.Empty(service.Process(AisDirectory, Camera, Start));
+        Assert.Empty(service.Process(AisDirectory, Camera, Start).Visible);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class AisServiceTests
     {
         var service = CreateService((Start, [VesselAt(431222999, bearingDegrees: 90, distanceMeters: 4500, Start)]));
 
-        Assert.Empty(service.Process(AisDirectory, Camera, Start));
+        Assert.Empty(service.Process(AisDirectory, Camera, Start).Visible);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class AisServiceTests
         var stationary = new AisRecord(431234567, longitude, latitude, 0.1, 270, 270, 70, Start);
         var service = CreateService((Start, [stationary]));
 
-        Assert.Empty(service.Process(AisDirectory, Camera, Start));
+        Assert.Empty(service.Process(AisDirectory, Camera, Start).Visible);
     }
 
     [Fact]
@@ -98,9 +98,9 @@ public class AisServiceTests
     {
         // Heading due west at 8kt, so after 60s it should be about 247m closer to the camera.
         var service = CreateService((Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]));
-        var firstFrame = service.Process(AisDirectory, Camera, Start);
+        var firstFrame = service.Process(AisDirectory, Camera, Start).Visible;
 
-        var laterFrame = service.Process(AisDirectory, Camera, Start.AddSeconds(60));
+        var laterFrame = service.Process(AisDirectory, Camera, Start.AddSeconds(60)).Visible;
 
         var carried = Assert.Single(laterFrame);
         Assert.Equal(431234567, carried.Record.Mmsi);
@@ -128,7 +128,7 @@ public class AisServiceTests
             (Start.AddSeconds(1), [jumped]));
         service.Process(AisDirectory, Camera, Start);
 
-        var second = service.Process(AisDirectory, Camera, Start.AddSeconds(1));
+        var second = service.Process(AisDirectory, Camera, Start.AddSeconds(1)).Visible;
 
         // The jumped message is discarded, so the vessel is dead reckoned instead of moved.
         var carried = Assert.Single(second);
@@ -141,7 +141,7 @@ public class AisServiceTests
         var stale = VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start.AddSeconds(-30));
         var service = CreateService((Start, [stale]));
 
-        var visible = service.Process(AisDirectory, Camera, Start);
+        var visible = service.Process(AisDirectory, Camera, Start).Visible;
 
         var projected = Assert.Single(visible);
         Assert.Equal(Start, projected.Record.Timestamp);
@@ -153,6 +153,46 @@ public class AisServiceTests
     [Fact]
     public void Process_WithNoRecords_ReturnsEmpty()
     {
-        Assert.Empty(CreateService().Process(AisDirectory, Camera, Start));
+        Assert.Empty(CreateService().Process(AisDirectory, Camera, Start).Visible);
+    }
+
+    [Fact]
+    public void Process_AccumulatesAHistoryOfProjectedPositions()
+    {
+        var service = CreateService((Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]));
+        service.Process(AisDirectory, Camera, Start);
+
+        var frame = service.Process(AisDirectory, Camera, Start.AddSeconds(30));
+
+        Assert.Single(frame.Visible);
+        Assert.Equal(2, frame.History.Count);
+        Assert.Equal([Start, Start.AddSeconds(30)], frame.History.Select(entry => entry.Record.Timestamp));
+    }
+
+    [Fact]
+    public void Process_ForgetsHistoryOlderThanTwoMinutes()
+    {
+        var service = CreateService((Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]));
+        service.Process(AisDirectory, Camera, Start);
+
+        // Far enough ahead that the vessel is still in view, but the first entry has aged out.
+        var frame = service.Process(AisDirectory, Camera, Start.AddSeconds(150));
+
+        Assert.Equal(Start.AddSeconds(150), Assert.Single(frame.History).Record.Timestamp);
+    }
+
+    [Fact]
+    public void Process_DropsTheHistoryOfAVesselThatLeavesTheFrameSideways()
+    {
+        // Starts in view, then the next message puts it due north of the camera.
+        var service = CreateService(
+            (Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]),
+            (Start.AddSeconds(1), [VesselAt(431234567, bearingDegrees: 0, distanceMeters: 900, Start.AddSeconds(1))]));
+        service.Process(AisDirectory, Camera, Start);
+
+        var frame = service.Process(AisDirectory, Camera, Start.AddSeconds(1));
+
+        Assert.Empty(frame.Visible);
+        Assert.Empty(frame.History);
     }
 }

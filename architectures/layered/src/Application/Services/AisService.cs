@@ -13,9 +13,6 @@ namespace LayeredArchitecture.Application.Services;
 // registered per request to match the original's per-run AISPRO instance, so one instance
 // must process a run's frames in chronological order.
 //
-// Not ported yet: AIS_vis, the two-minute history of projected positions. Only the
-// trajectory matching this port has still to implement (FUSPRO's DTW) reads it, so keeping
-// it here now would be state nothing consumes.
 public sealed class AisService
 {
     // AISPRO.max_dis: AIS positions further than two nautical miles from the camera are dropped.
@@ -26,7 +23,12 @@ public sealed class AisService
     private const double MaxJumpDegrees = 1;
     private const double MaxSpeedChangeKnots = 7;
 
+    // AISPRO.time_lim: projected positions are kept for two minutes so trajectory matching
+    // has something to compare.
+    private static readonly TimeSpan HistoryWindow = TimeSpan.FromMinutes(2);
+
     private readonly IAisRepository _aisRepository;
+    private readonly List<ProjectedAisRecord> _history = [];
     private IReadOnlyList<AisRecord> _previousSecond = [];
 
     public AisService(IAisRepository aisRepository)
@@ -34,7 +36,7 @@ public sealed class AisService
         _aisRepository = aisRepository;
     }
 
-    public IReadOnlyList<ProjectedAisRecord> Process(
+    public AisFrame Process(
         string aisDirectoryPath,
         CameraGeometry camera,
         DateTimeOffset timestampUtc)
@@ -43,7 +45,11 @@ public sealed class AisService
         var current = DeadReckonToCurrentSecond(received, timestampUtc);
         _previousSecond = current;
 
-        return Project(current, camera);
+        var visible = Project(current, camera);
+        _history.AddRange(visible);
+        _history.RemoveAll(entry => entry.Record.Timestamp < timestampUtc - HistoryWindow);
+
+        return new AisFrame(visible, _history.ToList());
     }
 
     private List<AisRecord> ReadPlausibleRecords(
@@ -81,15 +87,28 @@ public sealed class AisService
         return current;
     }
 
-    private static List<ProjectedAisRecord> Project(List<AisRecord> records, CameraGeometry camera)
+    private List<ProjectedAisRecord> Project(List<AisRecord> records, CameraGeometry camera)
     {
         var projected = new List<ProjectedAisRecord>(records.Count);
 
-        foreach (var record in records.Where(record =>
-            camera.Classify(record.Longitude, record.Latitude) == AisVisibility.Transform))
+        foreach (var record in records)
         {
-            var (x, y) = camera.Project(record.Longitude, record.Latitude);
-            projected.Add(new ProjectedAisRecord(record, x, y));
+            switch (camera.Classify(record.Longitude, record.Latitude))
+            {
+                case AisVisibility.Transform:
+                    var (x, y) = camera.Project(record.Longitude, record.Latitude);
+                    projected.Add(new ProjectedAisRecord(record, x, y));
+                    break;
+
+                // A vessel that has left the frame sideways takes its trajectory with it,
+                // so a track appearing at the edge later cannot match its stale history.
+                case AisVisibility.RemoveVisualTrack:
+                    _history.RemoveAll(entry => entry.Record.Mmsi == record.Mmsi);
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         return projected;

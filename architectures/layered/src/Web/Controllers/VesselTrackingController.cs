@@ -49,7 +49,8 @@ public sealed class VesselTrackingController : ControllerBase
             request.CameraParametersPath,
             request.StartTime,
             request.FrameCount,
-            TimeSpan.FromSeconds(request.FrameIntervalSeconds));
+            TimeSpan.FromSeconds(request.FrameIntervalSeconds),
+            request.ResultDirectory);
 
         return Ok(FrameResultMapper.ToResponse(frames));
     }

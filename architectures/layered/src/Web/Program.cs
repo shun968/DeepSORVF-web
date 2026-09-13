@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddScoped<IAisRepository, CsvAisRepository>();
 builder.Services.AddScoped<ICameraParametersRepository, TextFileCameraParametersRepository>();
+builder.Services.AddScoped<IMotResultWriter, MotResultFileWriter>();
 builder.Services.AddScoped<AisService>();
 builder.Services.AddScoped<DetectionService>();
 builder.Services.AddScoped<TrackingService>();
