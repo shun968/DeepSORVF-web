@@ -37,16 +37,17 @@ public sealed class AisRecord
     // block only (the sub-check that needs no camera_para / previous-second state).
     // Not a general geometric law: lon in [0,180] / lat in [0,90] reflects the original
     // FVessel dataset's fixed Northern/Eastern-hemisphere deployment, and speed > 0.3kt
-    // is a "moving vessel only" business rule, not a sentinel check. Course/heading are
-    // range-checked (rather than excluding the Python encoder's exact -1/360 sentinels)
-    // to avoid floating-point equality comparisons while rejecting the same values, since
-    // a valid compass bearing is always in [0, 360).
+    // is a "moving vessel only" business rule, not a sentinel check. Course is range-checked
+    // to [0, 360), which rejects the original's -1 and 360 sentinels without an exact
+    // floating-point comparison. Heading only rejects negatives (the -1 sentinel): the
+    // original keeps heading 511, AIS's "not available", and real FVessel data is full of it
+    // (1877 of clip-01's 3046 rows), so an upper bound here would discard most valid messages.
     public bool IsValid =>
         Mmsi is >= 100_000_000 and <= 999_999_999
         && Longitude is >= 0 and <= 180
         && Latitude is >= 0 and <= 90
         && CourseDegrees is >= 0 and < 360
-        && HeadingDegrees is >= 0 and < 360
+        && HeadingDegrees >= 0
         && SpeedKnots > 0.3;
 
     // Dead reckoning, ported from utils/AIS_utils.py's data_pre: AIS messages arrive

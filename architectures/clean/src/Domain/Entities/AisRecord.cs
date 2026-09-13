@@ -36,13 +36,16 @@ public sealed class AisRecord
     // Ported from DeepSORVF's utils/AIS_utils.py: data_coarse_process's first block, the
     // part that needs no camera parameters or previous-second state. lon in [0,180] /
     // lat in [0,90] reflects the original dataset's Northern/Eastern-hemisphere deployment,
-    // and speed > 0.3kt is a "moving vessel only" rule rather than a sentinel check.
+    // and speed > 0.3kt is a "moving vessel only" rule rather than a sentinel check. Heading
+    // only rejects negatives (the -1 sentinel): the original keeps heading 511, AIS's "not
+    // available", and real FVessel data is full of it, so an upper bound would discard most
+    // valid messages.
     public bool IsValid =>
         Mmsi is >= 100_000_000 and <= 999_999_999
         && Longitude is >= 0 and <= 180
         && Latitude is >= 0 and <= 90
         && CourseDegrees is >= 0 and < 360
-        && HeadingDegrees is >= 0 and < 360
+        && HeadingDegrees >= 0
         && SpeedKnots > 0.3;
 
     // Dead reckoning, ported from data_pre: a vessel is carried forward along its last

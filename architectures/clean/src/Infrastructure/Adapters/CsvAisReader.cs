@@ -6,10 +6,15 @@ namespace CleanArchitecture.Infrastructure.Adapters;
 
 // Reads the per-second CSV layout utils/file_read.py expects: one file per second named
 // after it, holding mmsi,lon,lat,speed,course,heading,type,timestamp (unix milliseconds).
-// A second with no file simply has no messages.
+// Columns are found by header name, so the FVessel files — which start with the unnamed
+// pandas index column the original skips via usecols=[1..8] — read the same as a plain
+// header. A second with no file simply has no messages.
 public sealed class CsvAisReader : IAisReader
 {
     private const string FileNameFormat = "yyyy_MM_dd_HH_mm_ss";
+
+    private static readonly string[] RequiredColumns =
+        ["mmsi", "lon", "lat", "speed", "course", "heading", "type", "timestamp"];
 
     public IReadOnlyList<AisRecord> ReadAt(string aisDirectoryPath, DateTimeOffset timestampUtc)
     {
@@ -21,29 +26,50 @@ public sealed class CsvAisReader : IAisReader
         }
 
         var lines = File.ReadAllLines(filePath);
-        var records = new List<AisRecord>(Math.Max(0, lines.Length - 1));
+        if (lines.Length == 0)
+        {
+            return [];
+        }
+
+        var columns = ColumnIndexes(lines[0], filePath);
+        var records = new List<AisRecord>(lines.Length - 1);
         for (var i = 1; i < lines.Length; i++)
         {
             if (lines[i].Length > 0)
             {
-                records.Add(Parse(lines[i]));
+                records.Add(Parse(lines[i].Split(','), columns));
             }
         }
 
         return records;
     }
 
-    private static AisRecord Parse(string line)
+    private static Dictionary<string, int> ColumnIndexes(string headerLine, string filePath)
     {
-        var fields = line.Split(',');
-        return new AisRecord(
-            mmsi: long.Parse(fields[0], CultureInfo.InvariantCulture),
-            longitude: double.Parse(fields[1], CultureInfo.InvariantCulture),
-            latitude: double.Parse(fields[2], CultureInfo.InvariantCulture),
-            speedKnots: double.Parse(fields[3], CultureInfo.InvariantCulture),
-            courseDegrees: double.Parse(fields[4], CultureInfo.InvariantCulture),
-            headingDegrees: double.Parse(fields[5], CultureInfo.InvariantCulture),
-            shipType: int.Parse(fields[6], CultureInfo.InvariantCulture),
-            timestamp: DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(fields[7], CultureInfo.InvariantCulture)));
+        var header = headerLine.Split(',');
+        var columns = new Dictionary<string, int>();
+        for (var i = 0; i < header.Length; i++)
+        {
+            columns[header[i].Trim()] = i;
+        }
+
+        var missing = RequiredColumns.Where(name => !columns.ContainsKey(name)).ToList();
+        if (missing.Count > 0)
+        {
+            throw new FormatException($"AIS file '{filePath}' is missing column(s): {string.Join(", ", missing)}.");
+        }
+
+        return columns;
     }
+
+    private static AisRecord Parse(string[] fields, Dictionary<string, int> columns) =>
+        new(
+            mmsi: long.Parse(fields[columns["mmsi"]], CultureInfo.InvariantCulture),
+            longitude: double.Parse(fields[columns["lon"]], CultureInfo.InvariantCulture),
+            latitude: double.Parse(fields[columns["lat"]], CultureInfo.InvariantCulture),
+            speedKnots: double.Parse(fields[columns["speed"]], CultureInfo.InvariantCulture),
+            courseDegrees: double.Parse(fields[columns["course"]], CultureInfo.InvariantCulture),
+            headingDegrees: double.Parse(fields[columns["heading"]], CultureInfo.InvariantCulture),
+            shipType: int.Parse(fields[columns["type"]], CultureInfo.InvariantCulture),
+            timestamp: DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(fields[columns["timestamp"]], CultureInfo.InvariantCulture)));
 }

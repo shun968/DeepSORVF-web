@@ -96,9 +96,11 @@ public class AisRecordTests
     }
 
     [Fact]
-    public void IsValid_WithHeadingAtOrAbove360_ReturnsFalse()
+    public void IsValid_WithHeadingNotAvailable_ReturnsTrue()
     {
-        Assert.False(CreateValid(headingDegrees: 360).IsValid);
+        // 511 is AIS for "heading not available". The original only drops -1, so these
+        // messages are kept — and real FVessel data is full of them.
+        Assert.True(CreateValid(headingDegrees: 511).IsValid);
     }
 
     [Fact]
