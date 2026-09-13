@@ -1,0 +1,54 @@
+version: "3"
+
+vars:
+  SOLUTION: CleanArchitecture.sln
+  DOMAIN_TEST_PROJ: tests/Domain.Tests/CleanArchitecture.Domain.Tests.csproj
+  ARCHITECTURE_TEST_PROJ: tests/Architecture.Tests/CleanArchitecture.Architecture.Tests.csproj
+  WEB_INTEGRATION_TEST_PROJ: tests/Web.IntegrationTests/CleanArchitecture.Web.IntegrationTests.csproj
+  WEB_PROJ_DIR: src/Web
+  COVERAGE_DIR: TestResults
+
+tasks:
+  build:
+    desc: Build the whole solution in one build (all layers together)
+    cmds:
+      - dotnet build {{.SOLUTION}}
+
+  run:
+    desc: Run the Web (Presentation) layer app
+    cmds:
+      - dotnet run --project {{.WEB_PROJ_DIR}}
+
+  test:
+    desc: Run tests for all layers
+    cmds:
+      - dotnet test {{.SOLUTION}}
+
+  test:domain:unit:
+    desc: Run Domain layer unit tests with line/branch/method coverage, failing if any falls below the threshold (default 100); lcov.info viewable in Coverage Gutters, and a shareable HTML report is generated via genhtml (TestResults/Domain.Tests/report/index.html)
+    vars:
+      THRESHOLD: "100"
+    cmds:
+      - dotnet test {{.DOMAIN_TEST_PROJ}} /p:CollectCoverage=true /p:CoverletOutputFormat=\"lcov,cobertura\" /p:CoverletOutput=../../{{.COVERAGE_DIR}}/Domain.Tests/ /p:Threshold={{.THRESHOLD}} /p:ThresholdType=\"line,branch,method\" /p:ThresholdStat=total
+      - genhtml {{.COVERAGE_DIR}}/Domain.Tests/coverage.info -o {{.COVERAGE_DIR}}/Domain.Tests/report
+
+  test:architecture:
+    desc: Verify the dependency rule (NetArchTest) — Domain depends on nothing, Application never reaches past the Domain's ports
+    cmds:
+      - dotnet test {{.ARCHITECTURE_TEST_PROJ}}
+
+  test:web:integration:
+    desc: Run Web layer integration tests (WebApplicationFactory, full HTTP round-trip against real AIS files on disk)
+    cmds:
+      - dotnet test {{.WEB_INTEGRATION_TEST_PROJ}}
+
+  lint:
+    desc: Lint the whole solution (formatting, code style, analyzers) without modifying files
+    cmds:
+      - dotnet format {{.SOLUTION}} --verify-no-changes --severity warn
+
+  clean:
+    desc: Clean all build outputs
+    cmds:
+      - dotnet clean {{.SOLUTION}}
+      - rm -rf {{.COVERAGE_DIR}}
