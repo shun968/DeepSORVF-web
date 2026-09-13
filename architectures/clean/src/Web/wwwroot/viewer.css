@@ -156,6 +156,12 @@ button:disabled {
   height: 100%;
 }
 
+.note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .controls {
   display: flex;
   align-items: center;

@@ -42,9 +42,10 @@
 
     <section id="viewer" class="panel" hidden>
       <div id="stage" class="stage">
-        <video id="video" muted playsinline hidden></video>
+        <video id="video" muted playsinline preload="auto" hidden></video>
         <canvas id="overlay"></canvas>
       </div>
+      <p id="no-video" class="note" hidden></p>
       <div class="controls">
         <button type="button" id="play">再生</button>
         <input type="range" id="seek" min="0" max="0" value="0" aria-label="フレーム">

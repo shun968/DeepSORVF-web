@@ -41,6 +41,7 @@ const viewer = document.getElementById("viewer");
 const stage = document.getElementById("stage");
 const video = document.getElementById("video");
 const canvas = document.getElementById("overlay");
+const noVideoNote = document.getElementById("no-video");
 const context = canvas.getContext("2d");
 const playButton = document.getElementById("play");
 const seek = document.getElementById("seek");
@@ -119,12 +120,17 @@ async function openRun(run, request) {
   const videoStart = Date.parse(fieldValue("videoStartTime") || request.startTime);
   const offsetSeconds = (Date.parse(request.startTime) - videoStart) / 1000;
   state.videoOffsetSeconds = Number.isFinite(offsetSeconds) ? offsetSeconds : 0;
-  state.hasVideo = fieldValue("videoPath") !== "" && (await loadVideo());
+  const videoRequested = fieldValue("videoPath") !== "";
+  state.hasVideo = videoRequested && (await loadVideo());
 
   canvas.width = state.hasVideo ? video.videoWidth : run.imageWidth;
   canvas.height = state.hasVideo ? video.videoHeight : run.imageHeight;
   stage.classList.toggle("has-video", state.hasVideo);
   video.hidden = !state.hasVideo;
+  noVideoNote.hidden = state.hasVideo;
+  noVideoNote.textContent = videoRequested
+    ? "動画を読み込めませんでした。ブラウザが再生できる形式（H.264のmp4など）か確認してください。"
+    : "動画が設定されていないため、映像なしで描画しています。映像に重ねるには、リポジトリ直下に clip-01/ を置くか、VIDEO_PATH を指定して task run を起動してください。";
   seek.max = String(Math.max(state.frames.length - 1, 0));
   viewer.hidden = false;
 
