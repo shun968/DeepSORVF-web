@@ -17,7 +17,7 @@ var app = builder.Build();
 
 app.MapControllers();
 
-app.Run();
+await app.RunAsync();
 
 // Exposes the top-level-statement-generated Program class to WebApplicationFactory<Program>
 // in tests/Web.IntegrationTests (which lives in a separate assembly, so it needs `public`).

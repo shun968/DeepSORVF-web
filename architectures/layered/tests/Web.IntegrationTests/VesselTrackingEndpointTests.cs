@@ -26,7 +26,13 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
 
         var response = await client.PostAsJsonAsync(
             "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest(_aisDirectory, startTime, FrameCount: 2, FrameIntervalSeconds: 1));
+            new VesselTrackingRunRequest
+            {
+                AisDataDirectory = _aisDirectory,
+                StartTime = startTime,
+                FrameCount = 2,
+                FrameIntervalSeconds = 1,
+            });
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<VesselTrackingRunResponse>();
@@ -45,8 +51,13 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
 
         var response = await client.PostAsJsonAsync(
             "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest(
-                Path.Combine(_aisDirectory, "does-not-exist"), DateTimeOffset.UnixEpoch, FrameCount: 1, FrameIntervalSeconds: 1));
+            new VesselTrackingRunRequest
+            {
+                AisDataDirectory = Path.Combine(_aisDirectory, "does-not-exist"),
+                StartTime = DateTimeOffset.UnixEpoch,
+                FrameCount = 1,
+                FrameIntervalSeconds = 1,
+            });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -58,7 +69,13 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
 
         var response = await client.PostAsJsonAsync(
             "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest(_aisDirectory, DateTimeOffset.UnixEpoch, FrameCount: 0, FrameIntervalSeconds: 1));
+            new VesselTrackingRunRequest
+            {
+                AisDataDirectory = _aisDirectory,
+                StartTime = DateTimeOffset.UnixEpoch,
+                FrameCount = 0,
+                FrameIntervalSeconds = 1,
+            });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
