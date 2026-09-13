@@ -78,6 +78,48 @@ public class AdapterTests : IDisposable
         Assert.Throws<FormatException>(() => new TextFileCameraParametersReader().Read(path));
     }
 
+    [Fact]
+    public void CsvAisReader_ReadsFVesselFilesWithALeadingIndexColumn()
+    {
+        // FVessel names files in local time (UTC+8), and writes a leading unnamed index column.
+        var timestamp = new DateTimeOffset(2022, 6, 4, 12, 5, 12, TimeSpan.FromHours(8));
+        WriteRawAisFile(
+            timestamp,
+            ",mmsi,lon,lat,speed,course,heading,type,timestamp",
+            "0,413000001,114.32583,30.60115833,0.9,142.5,511,18,1654315502004");
+
+        var record = Assert.Single(new CsvAisReader().ReadAt(_directory, timestamp));
+
+        Assert.Equal(413000001, record.Mmsi);
+        Assert.Equal(114.32583, record.Longitude);
+        Assert.Equal(30.60115833, record.Latitude);
+        Assert.Equal(511, record.HeadingDegrees);
+        Assert.Equal(18, record.ShipType);
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1654315502004), record.Timestamp);
+    }
+
+    [Fact]
+    public void CsvAisReader_WithAMissingColumn_Throws()
+    {
+        WriteRawAisFile(Timestamp, "mmsi,lon,lat", "431234567,121.5,29.87");
+
+        Assert.Throws<FormatException>(() => new CsvAisReader().ReadAt(_directory, Timestamp));
+    }
+
+    [Fact]
+    public void CsvAisReader_WithAnEmptyFile_ReturnsEmpty()
+    {
+        WriteRawAisFile(Timestamp);
+
+        Assert.Empty(new CsvAisReader().ReadAt(_directory, Timestamp));
+    }
+
+    private void WriteRawAisFile(DateTimeOffset timestamp, params string[] lines)
+    {
+        var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";
+        File.WriteAllLines(Path.Combine(_directory, fileName), lines);
+    }
+
     private void WriteAisCsv(DateTimeOffset timestamp, string[] rows)
     {
         var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";

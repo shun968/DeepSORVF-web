@@ -50,6 +50,50 @@ public class CsvAisRepositoryTests : IDisposable
         Assert.Single(records);
     }
 
+    [Fact]
+    public void GetRecordsAt_ReadsFVesselFilesWithALeadingIndexColumn()
+    {
+        // FVessel names files in local time (UTC+8), and writes a leading unnamed index column.
+        var timestamp = new DateTimeOffset(2022, 6, 4, 12, 5, 12, TimeSpan.FromHours(8));
+        WriteRawFile(
+            timestamp,
+            ",mmsi,lon,lat,speed,course,heading,type,timestamp",
+            "0,413000001,114.32583,30.60115833,0.9,142.5,511,18,1654315502004");
+
+        var record = Assert.Single(_repository.GetRecordsAt(_directory, timestamp));
+
+        Assert.Equal(413000001, record.Mmsi);
+        Assert.Equal(114.32583, record.Longitude);
+        Assert.Equal(30.60115833, record.Latitude);
+        Assert.Equal(511, record.HeadingDegrees);
+        Assert.Equal(18, record.ShipType);
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1654315502004), record.Timestamp);
+    }
+
+    [Fact]
+    public void GetRecordsAt_WithAMissingColumn_Throws()
+    {
+        var timestamp = new DateTimeOffset(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        WriteRawFile(timestamp, "mmsi,lon,lat", "431234567,121.5,29.87");
+
+        Assert.Throws<FormatException>(() => _repository.GetRecordsAt(_directory, timestamp));
+    }
+
+    [Fact]
+    public void GetRecordsAt_WithAnEmptyFile_ReturnsEmpty()
+    {
+        var timestamp = new DateTimeOffset(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        WriteRawFile(timestamp);
+
+        Assert.Empty(_repository.GetRecordsAt(_directory, timestamp));
+    }
+
+    private void WriteRawFile(DateTimeOffset timestamp, params string[] lines)
+    {
+        var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";
+        File.WriteAllLines(Path.Combine(_directory, fileName), lines);
+    }
+
     private void WriteCsv(DateTimeOffset timestamp, string[] rows)
     {
         var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";
