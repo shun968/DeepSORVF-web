@@ -28,3 +28,12 @@ obj/
 
 # Local-only notes (design musings, scratch discussion) not meant to be committed or shared
 /docs/local-notes/
+
+# Model weights — attached to the weights-v1 GitHub Release, fetched by scripts/fetch-model-weights.sh
+/deep_sort/deep_sort/deep/checkpoint/ckpt.t7
+/detection_yolox/model_data/YOLOX-final.pth
+
+# Test data and run outputs (clip-01's video/AIS, main.py results) — large, and not ours to redistribute
+/tmp/
+/clip-01/
+/result/

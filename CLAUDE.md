@@ -20,7 +20,9 @@ comments and identifiers in `utils/` and `AIS_utils.py`/`FUS_utils.py` are in Ch
   third-party import in the repo, pinned to the latest release still shipping a Python 3.7 wheel.
   `detection_yolox/requirements.txt` also exists but targets an older, narrower torch/opencv pin —
   prefer the top-level file.
-* Before running, download and place two checkpoints (not included in the repo):
+* Before running, fetch the two checkpoints with `bash scripts/fetch-model-weights.sh` — they are
+  attached to this repo's `weights-v1` GitHub Release rather than committed (public forks can't
+  upload new Git LFS objects), and the script verifies their SHA-256. Both paths are gitignored:
   * `ckpt.t7` → `deep_sort/deep_sort/deep/checkpoint/`
   * `YOLOX-final.pth` → `detection_yolox/model_data/`
 * Run with: `python main.py --data_path ./clip-01/ --result_path ./result/`
@@ -74,10 +76,9 @@ changes there over refactors.
 * `.devcontainer/Dockerfile` (`python:3.7-slim` base) plus the top-level `requirements.txt`
   (`postCreateCommand` runs `pip install --user -r requirements.txt`) reproduce the README's
   documented runtime, CPU-only. `libgl1`/`libglib2.0-0` are installed for `opencv-python`, which needs
-  them even headless. The two model checkpoints (`ckpt.t7`, `YOLOX-final.pth`) are hosted on Google
-  Drive and aren't fetched automatically — placing them under `deep_sort/deep_sort/deep/checkpoint/`
-  and `detection_yolox/model_data/` (both already tracked, empty otherwise) stays a manual step, per
-  the README's `実行方法` section. Trade-off worth knowing: Python 3.7 reached end-of-life in 2023, so
+  them even headless. The two model checkpoints aren't fetched by `postCreateCommand`, since `gh`
+  may not be logged in yet at that point — run `scripts/fetch-model-weights.sh` once, which pulls
+  them from the `weights-v1` GitHub Release. Trade-off worth knowing: Python 3.7 reached end-of-life in 2023, so
   `python:3.7-slim` gets no further upstream security patches — pinned only because the README (and
   PyTorch 1.13.1) require it.
 * `.claude/settings.json` (project-shared, committed) turns on Claude Code's built-in Bash sandbox
@@ -117,8 +118,8 @@ changes there over refactors.
   Docker's own sandboxing of the *entire* devcontainer, not just the bwrap-based command sandbox —
   Claude Code's `sandbox.*` config above remains the actual access-control boundary for agent-run
   commands.
-* When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. wherever `ckpt.t7` /
-  `YOLOX-final.pth` are hosted), either fetch it manually outside the sandbox or add the host to the
+* When work needs a host that isn't in `sandbox.network.allowedDomains` (e.g. Google Drive, where the
+  `clip-01` test data is hosted), either fetch it manually outside the sandbox or add the host to the
   allowlist in `.claude/settings.json`.
 * `.devcontainer/Dockerfile` installs the Notion CLI (`ntn`, `curl -fsSL https://ntn.dev | bash`,
   which redirects to `developers.notion.com/cli`) as the `vscode` user, and symlinks it into
