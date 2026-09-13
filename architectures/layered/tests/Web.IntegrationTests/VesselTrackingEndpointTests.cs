@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using LayeredArchitecture.Web.Contracts;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace LayeredArchitecture.Web.IntegrationTests;
@@ -112,6 +114,104 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task CreateRun_ReportsTheImageSizeTheFramesWereProjectedInto()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", Request());
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<VesselTrackingRunResponse>();
+        Assert.Equal(1920, body!.ImageWidth);
+        Assert.Equal(1080, body.ImageHeight);
+    }
+
+    [Fact]
+    public async Task Root_ServesTheViewerPage()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/");
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("viewer.js", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task GetRunDefaults_ReturnsTheConfiguredValues()
+    {
+        var client = ClientWithSettings(new()
+        {
+            ["RunDefaults:AisDataDirectory"] = _aisDirectory,
+            ["RunDefaults:StartTime"] = "2022-06-04T12:05:12+08:00",
+            ["RunDefaults:FrameCount"] = "5",
+        });
+
+        var defaults = await client.GetFromJsonAsync<RunDefaults>("/api/vessel-tracking/run-defaults");
+
+        Assert.Equal(_aisDirectory, defaults!.AisDataDirectory);
+        Assert.Equal("2022-06-04T12:05:12+08:00", defaults.StartTime);
+        Assert.Equal(5, defaults.FrameCount);
+        Assert.Null(defaults.VideoPath);
+    }
+
+    [Fact]
+    public async Task GetVideo_StreamsTheConfiguredVideoByRange()
+    {
+        var videoPath = Path.Combine(_directory, "clip.mp4");
+        File.WriteAllBytes(videoPath, [0, 1, 2, 3, 4, 5, 6, 7]);
+        var client = ClientWithSettings(new() { ["RunDefaults:VideoPath"] = videoPath });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/vessel-tracking/video");
+        request.Headers.Range = new RangeHeaderValue(2, 5);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.PartialContent, response.StatusCode);
+        Assert.Equal("video/mp4", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(new byte[] { 2, 3, 4, 5 }, await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task GetVideo_WithAnUnknownExtension_ServesItAsBinary()
+    {
+        var videoPath = Path.Combine(_directory, "clip.unknown-video");
+        File.WriteAllBytes(videoPath, [0, 1, 2]);
+        var client = ClientWithSettings(new() { ["RunDefaults:VideoPath"] = videoPath });
+
+        var response = await client.GetAsync("/api/vessel-tracking/video");
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("application/octet-stream", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task GetVideo_WithoutAConfiguredVideo_ReturnsNotFound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/vessel-tracking/video");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetVideo_WhenTheConfiguredVideoIsMissing_ReturnsNotFound()
+    {
+        var client = ClientWithSettings(new() { ["RunDefaults:VideoPath"] = Path.Combine(_directory, "missing.mp4") });
+
+        var response = await client.GetAsync("/api/vessel-tracking/video");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private HttpClient ClientWithSettings(Dictionary<string, string?> settings) =>
+        _factory
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(settings)))
+            .CreateClient();
 
     private void WriteAisCsv(DateTimeOffset timestamp, string[] rows)
     {

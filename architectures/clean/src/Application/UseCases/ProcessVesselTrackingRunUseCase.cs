@@ -10,7 +10,11 @@ public sealed record ProcessVesselTrackingRunRequest(
     int FrameCount,
     TimeSpan FrameInterval);
 
-public sealed record ProcessVesselTrackingRunResponse(IReadOnlyList<ProcessVideoFrameResponse> Frames);
+// ImageWidth/ImageHeight are the size of the image the frames were projected into.
+public sealed record ProcessVesselTrackingRunResponse(
+    int ImageWidth,
+    int ImageHeight,
+    IReadOnlyList<ProcessVideoFrameResponse> Frames);
 
 // Runs the per-frame use case over a sequence of frames, after reading the camera
 // calibration the whole run shares.
@@ -52,6 +56,6 @@ public sealed class ProcessVesselTrackingRunUseCase
                 imageHeight)));
         }
 
-        return new ProcessVesselTrackingRunResponse(frames);
+        return new ProcessVesselTrackingRunResponse(imageWidth, imageHeight, frames);
     }
 }

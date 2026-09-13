@@ -6,7 +6,7 @@ namespace CleanArchitecture.Web.Contracts;
 public static class VesselTrackingMapper
 {
     public static VesselTrackingRunResponse ToResponse(ProcessVesselTrackingRunResponse response) =>
-        new(response.Frames.Select(ToDto).ToList());
+        new(response.ImageWidth, response.ImageHeight, response.Frames.Select(ToDto).ToList());
 
     private static FrameDto ToDto(ProcessVideoFrameResponse frame) => new(
         frame.FrameIndex,

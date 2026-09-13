@@ -3,10 +3,12 @@ using CleanArchitecture.Domain.Ports;
 using CleanArchitecture.Domain.Services;
 using CleanArchitecture.Infrastructure.Adapters;
 using CleanArchitecture.Infrastructure.Mocks;
+using CleanArchitecture.Web.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.Configure<RunDefaults>(builder.Configuration.GetSection(RunDefaults.SectionName));
 
 // The whole point of the pattern: every step of the pipeline is chosen here, and nothing
 // above this file knows which implementation it got. Swapping the mock detector for a real
@@ -24,6 +26,9 @@ builder.Services.AddScoped<ProcessVesselTrackingRunUseCase>();
 
 var app = builder.Build();
 
+// The viewer page (wwwroot/index.html) that draws a run over its frames.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
 
 await app.RunAsync();

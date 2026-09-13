@@ -1,6 +1,8 @@
 using CleanArchitecture.Application.UseCases;
 using CleanArchitecture.Web.Contracts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Options;
 
 namespace CleanArchitecture.Web.Controllers;
 
@@ -11,10 +13,12 @@ namespace CleanArchitecture.Web.Controllers;
 public sealed class VesselTrackingController : ControllerBase
 {
     private readonly ProcessVesselTrackingRunUseCase _useCase;
+    private readonly RunDefaults _runDefaults;
 
-    public VesselTrackingController(ProcessVesselTrackingRunUseCase useCase)
+    public VesselTrackingController(ProcessVesselTrackingRunUseCase useCase, IOptions<RunDefaults> runDefaults)
     {
         _useCase = useCase;
+        _runDefaults = runDefaults.Value;
     }
 
     [HttpPost("runs")]
@@ -48,5 +52,29 @@ public sealed class VesselTrackingController : ControllerBase
             TimeSpan.FromSeconds(request.FrameIntervalSeconds)));
 
         return Ok(VesselTrackingMapper.ToResponse(response));
+    }
+
+    // What the viewer page (wwwroot/index.html) pre-fills its form with.
+    [HttpGet("run-defaults")]
+    public ActionResult<RunDefaults> GetRunDefaults() => _runDefaults;
+
+    // Streams the video configured at startup (RunDefaults:VideoPath) for the viewer page to
+    // draw a run over. Only that one file is served: taking the path from the request would
+    // let any caller read any file the app can.
+    [HttpGet("video")]
+    public IActionResult GetVideo()
+    {
+        var path = _runDefaults.VideoPath;
+        if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+        {
+            return NotFound();
+        }
+
+        if (!new FileExtensionContentTypeProvider().TryGetContentType(path, out var contentType))
+        {
+            contentType = "application/octet-stream";
+        }
+
+        return PhysicalFile(Path.GetFullPath(path), contentType, enableRangeProcessing: true);
     }
 }

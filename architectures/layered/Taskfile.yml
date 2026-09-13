@@ -15,63 +15,27 @@ tasks:
       - dotnet build {{.SOLUTION}}
 
   run:
-    desc: Run the pipeline locally on the bundled sample-data — starts the Web (Presentation) layer app, POSTs one run, prints the JSON response and stops the app; override AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to run other data
+    desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video given as VIDEO_PATH; its form opens on the bundled sample-data unless AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR are overridden
     vars:
       PORT: '{{.PORT | default "5000"}}'
       AIS_DIR: '{{.AIS_DIR | default (print .TASKFILE_DIR "/sample-data/ais")}}'
       CAMERA_PARAMS: '{{.CAMERA_PARAMS | default (print .TASKFILE_DIR "/sample-data/camera.txt")}}'
+      VIDEO_PATH: '{{.VIDEO_PATH | default ""}}'
       START_TIME: '{{.START_TIME | default "2021-01-01T12:00:00Z"}}'
       FRAME_COUNT: '{{.FRAME_COUNT | default "3"}}'
       FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS | default "60"}}'
       RESULT_DIR: '{{.RESULT_DIR | default ""}}'
     env:
-      WEB_PROJ_DIR: '{{.WEB_PROJ_DIR}}'
-      PORT: '{{.PORT}}'
-      AIS_DIR: '{{.AIS_DIR}}'
-      CAMERA_PARAMS: '{{.CAMERA_PARAMS}}'
-      START_TIME: '{{.START_TIME}}'
-      FRAME_COUNT: '{{.FRAME_COUNT}}'
-      FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS}}'
-      RESULT_DIR: '{{.RESULT_DIR}}'
+      RunDefaults__AisDataDirectory: '{{.AIS_DIR}}'
+      RunDefaults__CameraParametersPath: '{{.CAMERA_PARAMS}}'
+      RunDefaults__VideoPath: '{{.VIDEO_PATH}}'
+      RunDefaults__StartTime: '{{.START_TIME}}'
+      RunDefaults__FrameCount: '{{.FRAME_COUNT}}'
+      RunDefaults__FrameIntervalSeconds: '{{.FRAME_INTERVAL_SECONDS}}'
+      RunDefaults__ResultDirectory: '{{.RESULT_DIR}}'
     cmds:
-      # Build output goes to stderr so stdout carries only the JSON response (e.g. for `task run | jq`).
-      - dotnet build {{.WEB_PROJ_DIR}} >&2
-      # Task's built-in shell has no job control (no usable $! or kill), so the start/stop runs in bash.
-      - |
-        bash -euo pipefail <<'EOF'
-        port_open() { (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; }
-        if port_open; then
-          echo "Port $PORT is already in use; stop that process or pass PORT=<free port>." >&2
-          exit 1
-        fi
-        dotnet run --no-build --project "$WEB_PROJ_DIR" --urls "http://localhost:$PORT" --Logging:LogLevel:Default=Warning >&2 &
-        server=$!
-        trap 'kill "$server" 2>/dev/null || true' EXIT
-        until port_open; do
-          if ! kill -0 "$server" 2>/dev/null; then
-            echo "The Web app exited before listening on port $PORT." >&2
-            exit 1
-          fi
-          sleep 0.2
-        done
-        request=$(jq -n \
-          --arg aisDataDirectory "$AIS_DIR" \
-          --arg cameraParametersPath "$CAMERA_PARAMS" \
-          --arg startTime "$START_TIME" \
-          --argjson frameCount "$FRAME_COUNT" \
-          --argjson frameIntervalSeconds "$FRAME_INTERVAL_SECONDS" \
-          --arg resultDirectory "$RESULT_DIR" \
-          '{$aisDataDirectory, $cameraParametersPath, $startTime, $frameCount, $frameIntervalSeconds}
-            + (if $resultDirectory == "" then {} else {$resultDirectory} end)')
-        if ! response=$(curl --silent --show-error --fail-with-body \
-          -X POST "http://localhost:$PORT/api/vessel-tracking/runs" \
-          -H 'Content-Type: application/json' \
-          --data "$request"); then
-          echo "$response" >&2
-          exit 1
-        fi
-        jq . <<<"$response"
-        EOF
+      - echo "Open http://localhost:{{.PORT}}/ in a browser once the app has started (Ctrl+C to stop)."
+      - dotnet run --project {{.WEB_PROJ_DIR}} --urls http://localhost:{{.PORT}}
 
   test:
     desc: Run tests for all layers

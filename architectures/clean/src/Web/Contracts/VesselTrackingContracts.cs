@@ -12,7 +12,7 @@ public sealed record VesselTrackingRunRequest
     public required int FrameIntervalSeconds { get; init; }
 }
 
-public sealed record VesselTrackingRunResponse(IReadOnlyList<FrameDto> Frames);
+public sealed record VesselTrackingRunResponse(int ImageWidth, int ImageHeight, IReadOnlyList<FrameDto> Frames);
 
 public sealed record FrameDto(
     int FrameIndex,

@@ -65,7 +65,7 @@ public class VesselTrackingPipelineTests
     {
         var pipeline = CreatePipeline(VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800));
 
-        var frame = Assert.Single(pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1)));
+        var frame = Assert.Single(pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1)).Frames);
 
         Assert.Equal(431234567, Assert.Single(frame.AisRecords).Record.Mmsi);
         // One track for the vessel and one for the mock's vessel without AIS.
@@ -80,10 +80,20 @@ public class VesselTrackingPipelineTests
         var pipeline = CreatePipeline();
         var interval = TimeSpan.FromSeconds(10);
 
-        var results = pipeline.ProcessFrames(AisDirectory, CameraPath, Start, frameCount: 3, interval);
+        var results = pipeline.ProcessFrames(AisDirectory, CameraPath, Start, frameCount: 3, interval).Frames;
 
         Assert.Equal([0, 1, 2], results.Select(frame => frame.FrameIndex));
         Assert.Equal([Start, Start + interval, Start + (interval * 2)], results.Select(frame => frame.Timestamp));
+    }
+
+    [Fact]
+    public void ProcessFrames_ReportsTheImageSizeFromThePrincipalPoint()
+    {
+        var run = CreatePipeline().ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1));
+
+        // The principal point sits at the image centre: 960x540 means a 1920x1080 frame.
+        Assert.Equal(1920, run.ImageWidth);
+        Assert.Equal(1080, run.ImageHeight);
     }
 
     [Fact]
@@ -116,7 +126,7 @@ public class VesselTrackingPipelineTests
     {
         var pipeline = CreatePipeline(VesselAt(431234567, bearingDegrees: 90, distanceMeters: 1500));
 
-        var results = pipeline.ProcessFrames(AisDirectory, CameraPath, Start, frameCount: 3, TimeSpan.FromSeconds(60));
+        var results = pipeline.ProcessFrames(AisDirectory, CameraPath, Start, frameCount: 3, TimeSpan.FromSeconds(60)).Frames;
 
         // Closing on the camera at 8kt, so it should appear progressively lower in frame.
         var ys = results.Select(frame => Assert.Single(frame.AisRecords).Y).ToList();

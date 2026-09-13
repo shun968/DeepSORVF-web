@@ -2,6 +2,8 @@ using LayeredArchitecture.Application.Pipeline;
 using LayeredArchitecture.Web.Contracts;
 using LayeredArchitecture.Web.Mapping;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Options;
 
 namespace LayeredArchitecture.Web.Controllers;
 
@@ -10,10 +12,12 @@ namespace LayeredArchitecture.Web.Controllers;
 public sealed class VesselTrackingController : ControllerBase
 {
     private readonly VesselTrackingPipeline _pipeline;
+    private readonly RunDefaults _runDefaults;
 
-    public VesselTrackingController(VesselTrackingPipeline pipeline)
+    public VesselTrackingController(VesselTrackingPipeline pipeline, IOptions<RunDefaults> runDefaults)
     {
         _pipeline = pipeline;
+        _runDefaults = runDefaults.Value;
     }
 
     // Issue #1's checklist explicitly asks how continuous, long-running frame processing
@@ -44,7 +48,7 @@ public sealed class VesselTrackingController : ControllerBase
             return BadRequest("FrameIntervalSeconds must be greater than zero.");
         }
 
-        var frames = _pipeline.ProcessFrames(
+        var run = _pipeline.ProcessFrames(
             request.AisDataDirectory,
             request.CameraParametersPath,
             request.StartTime,
@@ -52,6 +56,30 @@ public sealed class VesselTrackingController : ControllerBase
             TimeSpan.FromSeconds(request.FrameIntervalSeconds),
             request.ResultDirectory);
 
-        return Ok(FrameResultMapper.ToResponse(frames));
+        return Ok(FrameResultMapper.ToResponse(run));
+    }
+
+    // What the viewer page (wwwroot/index.html) pre-fills its form with.
+    [HttpGet("run-defaults")]
+    public ActionResult<RunDefaults> GetRunDefaults() => _runDefaults;
+
+    // Streams the video configured at startup (RunDefaults:VideoPath) for the viewer page to
+    // draw a run over. Only that one file is served: taking the path from the request would
+    // let any caller read any file the app can.
+    [HttpGet("video")]
+    public IActionResult GetVideo()
+    {
+        var path = _runDefaults.VideoPath;
+        if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+        {
+            return NotFound();
+        }
+
+        if (!new FileExtensionContentTypeProvider().TryGetContentType(path, out var contentType))
+        {
+            contentType = "application/octet-stream";
+        }
+
+        return PhysicalFile(Path.GetFullPath(path), contentType, enableRangeProcessing: true);
     }
 }
