@@ -43,6 +43,7 @@ jobs:
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.exclusions="**/bin/**,**/obj/**" \
+            /d:sonar.cpd.exclusions="architectures/clean/**" \
             /d:sonar.cs.opencover.reportsPaths="architectures/*/tests/*/coverage.opencover.xml"
           dotnet build architectures/layered/LayeredArchitecture.sln
           dotnet build architectures/clean/CleanArchitecture.sln
