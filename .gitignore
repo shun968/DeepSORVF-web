@@ -25,3 +25,6 @@ obj/
 
 # dotnet CLI's file-based-app discovery cache (VS Code C# tooling; machine-local, auto-regenerated)
 /dotnet/
+
+# Local-only notes (design musings, scratch discussion) not meant to be committed or shared
+/docs/local-notes/
