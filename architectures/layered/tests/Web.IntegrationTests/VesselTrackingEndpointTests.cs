@@ -9,55 +9,86 @@ namespace LayeredArchitecture.Web.IntegrationTests;
 
 public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<Program>>, IDisposable
 {
+    private static readonly DateTimeOffset StartTime = new(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
     private readonly WebApplicationFactory<Program> _factory;
-    private readonly string _aisDirectory = Directory.CreateTempSubdirectory("web-integration-ais-").FullName;
+    private readonly string _directory = Directory.CreateTempSubdirectory("web-integration-").FullName;
+    private readonly string _aisDirectory;
+    private readonly string _cameraPath;
 
     public VesselTrackingEndpointTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
+        _aisDirectory = Path.Combine(_directory, "ais");
+        Directory.CreateDirectory(_aisDirectory);
+        _cameraPath = Path.Combine(_directory, "camera.txt");
+        File.WriteAllText(_cameraPath, "[121.5,29.87,90,5,20,55,35,1500,1500,960,540]\n");
     }
 
-    [Fact]
-    public async Task CreateRun_WithRealAisFileOnDisk_ReturnsFusedFrames()
+    private VesselTrackingRunRequest Request(int frameCount = 1, int frameIntervalSeconds = 1) => new()
     {
-        var startTime = new DateTimeOffset(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
-        WriteAisCsv(startTime, ["431234567,121.5,29.87,5.2,45,47,30,1609502400000"]);
+        AisDataDirectory = _aisDirectory,
+        CameraParametersPath = _cameraPath,
+        StartTime = StartTime,
+        FrameCount = frameCount,
+        FrameIntervalSeconds = frameIntervalSeconds,
+    };
+
+    [Fact]
+    public async Task CreateRun_ProjectsAisFromDiskAndBindsItToATrack()
+    {
+        // 800m due east of the camera, closing on it at 8kt.
+        WriteAisCsv(StartTime, ["431234567,121.508287,29.870000,8.0,270,270,70,1609502400000"]);
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync(
-            "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest
-            {
-                AisDataDirectory = _aisDirectory,
-                StartTime = startTime,
-                FrameCount = 2,
-                FrameIntervalSeconds = 1,
-            });
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", Request());
 
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<VesselTrackingRunResponse>();
         Assert.NotNull(body);
-        Assert.Equal(2, body!.Frames.Count);
-        Assert.Single(body.Frames[0].AisRecords);
-        Assert.Equal(431234567, body.Frames[0].AisRecords[0].Mmsi);
-        Assert.NotEmpty(body.Frames[0].Tracks);
-        Assert.Equal(431234567, body.Frames[0].FusedTracks[0].Mmsi);
+        var frame = Assert.Single(body!.Frames);
+        var ais = Assert.Single(frame.AisRecords);
+        Assert.Equal(431234567, ais.Mmsi);
+        Assert.InRange(ais.X, 958, 962);
+        Assert.True(ais.Y > 540, $"a vessel below the horizon should project below the principal point, got {ais.Y}");
+        Assert.Equal(431234567, frame.FusedTracks[0].Mmsi);
+        Assert.Null(frame.FusedTracks[1].Mmsi);
+    }
+
+    [Fact]
+    public async Task CreateRun_CarriesTheVesselForwardAcrossFramesWithoutFurtherMessages()
+    {
+        WriteAisCsv(StartTime, ["431234567,121.508287,29.870000,8.0,270,270,70,1609502400000"]);
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/vessel-tracking/runs",
+            Request(frameCount: 3, frameIntervalSeconds: 60));
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<VesselTrackingRunResponse>();
+        var ys = body!.Frames.Select(frame => Assert.Single(frame.AisRecords).Y).ToList();
+        Assert.True(ys[0] < ys[1] && ys[1] < ys[2], $"expected the vessel to descend the frame, got {string.Join(", ", ys)}");
     }
 
     [Fact]
     public async Task CreateRun_WithMissingAisDirectory_ReturnsBadRequest()
     {
         var client = _factory.CreateClient();
+        var request = Request() with { AisDataDirectory = Path.Combine(_directory, "does-not-exist") };
 
-        var response = await client.PostAsJsonAsync(
-            "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest
-            {
-                AisDataDirectory = Path.Combine(_aisDirectory, "does-not-exist"),
-                StartTime = DateTimeOffset.UnixEpoch,
-                FrameCount = 1,
-                FrameIntervalSeconds = 1,
-            });
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateRun_WithMissingCameraParameters_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+        var request = Request() with { CameraParametersPath = Path.Combine(_directory, "missing.txt") };
+
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -67,15 +98,17 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync(
-            "/api/vessel-tracking/runs",
-            new VesselTrackingRunRequest
-            {
-                AisDataDirectory = _aisDirectory,
-                StartTime = DateTimeOffset.UnixEpoch,
-                FrameCount = 0,
-                FrameIntervalSeconds = 1,
-            });
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", Request(frameCount: 0));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateRun_WithNonPositiveFrameInterval_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", Request(frameIntervalSeconds: 0));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -88,5 +121,5 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
         File.WriteAllLines(Path.Combine(_aisDirectory, fileName), lines);
     }
 
-    public void Dispose() => Directory.Delete(_aisDirectory, recursive: true);
+    public void Dispose() => Directory.Delete(_directory, recursive: true);
 }

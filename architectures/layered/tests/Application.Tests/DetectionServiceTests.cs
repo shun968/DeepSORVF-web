@@ -1,35 +1,40 @@
 using LayeredArchitecture.Application.Services;
+using LayeredArchitecture.Domain.Entities;
 using Xunit;
 
 namespace LayeredArchitecture.Application.Tests;
 
 public class DetectionServiceTests
 {
+    private static readonly DateTimeOffset Timestamp = DateTimeOffset.UnixEpoch;
     private readonly DetectionService _service = new();
 
+    private static ProjectedAisRecord Projected(int x, int y) =>
+        new(new AisRecord(431234567, 121.5, 29.87, 8, 270, 270, 70, Timestamp), x, y);
+
     [Fact]
-    public void Detect_ReturnsRequestedCount()
+    public void Detect_ReturnsOneBoxPerVisibleVesselPlusOneWithoutAis()
     {
-        var boxes = _service.Detect(frameIndex: 0, DateTimeOffset.UnixEpoch, count: 3);
+        var boxes = _service.Detect([Projected(960, 700), Projected(400, 650)], Timestamp);
 
         Assert.Equal(3, boxes.Count);
     }
 
     [Fact]
-    public void Detect_IsDeterministicForTheSameFrameIndex()
+    public void Detect_PlacesBoxesOnTheProjectedAisPositions()
     {
-        var first = _service.Detect(frameIndex: 2, DateTimeOffset.UnixEpoch);
-        var second = _service.Detect(frameIndex: 2, DateTimeOffset.UnixEpoch);
+        var boxes = _service.Detect([Projected(960, 700)], Timestamp);
 
-        Assert.Equal(first.Select(box => (box.X1, box.Y1, box.X2, box.Y2)), second.Select(box => (box.X1, box.Y1, box.X2, box.Y2)));
+        Assert.Equal(966, boxes[0].CenterX);
+        Assert.Equal(704, boxes[0].CenterY);
+        Assert.Equal(Timestamp, boxes[0].Timestamp);
     }
 
     [Fact]
-    public void Detect_MovesAcrossFrames()
+    public void Detect_WithNoVisibleVessels_StillReportsTheVesselWithoutAis()
     {
-        var frame0 = _service.Detect(frameIndex: 0, DateTimeOffset.UnixEpoch);
-        var frame1 = _service.Detect(frameIndex: 1, DateTimeOffset.UnixEpoch);
+        var boxes = _service.Detect([], Timestamp);
 
-        Assert.NotEqual(frame0[0].X1, frame1[0].X1);
+        Assert.Single(boxes);
     }
 }

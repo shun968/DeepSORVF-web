@@ -7,6 +7,7 @@ namespace LayeredArchitecture.Web.Contracts;
 public sealed record VesselTrackingRunRequest
 {
     public required string AisDataDirectory { get; init; }
+    public required string CameraParametersPath { get; init; }
     public required DateTimeOffset StartTime { get; init; }
     public required int FrameCount { get; init; }
     public required int FrameIntervalSeconds { get; init; }
