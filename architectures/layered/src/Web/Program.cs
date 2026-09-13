@@ -2,10 +2,12 @@ using LayeredArchitecture.Application.Pipeline;
 using LayeredArchitecture.Application.Services;
 using LayeredArchitecture.Domain.Repositories;
 using LayeredArchitecture.Infrastructure.Repositories;
+using LayeredArchitecture.Web.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.Configure<RunDefaults>(builder.Configuration.GetSection(RunDefaults.SectionName));
 builder.Services.AddScoped<IAisRepository, CsvAisRepository>();
 builder.Services.AddScoped<ICameraParametersRepository, TextFileCameraParametersRepository>();
 builder.Services.AddScoped<IMotResultWriter, MotResultFileWriter>();
@@ -17,6 +19,9 @@ builder.Services.AddScoped<VesselTrackingPipeline>();
 
 var app = builder.Build();
 
+// The viewer page (wwwroot/index.html) that draws a run over its frames.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
 
 await app.RunAsync();

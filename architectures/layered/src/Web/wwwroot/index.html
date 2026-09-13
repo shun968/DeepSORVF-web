@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>船舶追跡ビューア (layered)</title>
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+  <header>
+    <h1>船舶追跡ビューア <span class="port">layered architecture</span></h1>
+  </header>
+  <main>
+    <form id="run-form">
+      <fieldset>
+        <legend>入力データ</legend>
+        <label>AISディレクトリ
+          <input name="aisDataDirectory" required>
+        </label>
+        <label>カメラパラメータ
+          <input name="cameraParametersPath" required>
+        </label>
+        <label>開始時刻
+          <input name="startTime" required placeholder="2022-06-04T12:05:12+08:00">
+        </label>
+        <label>フレーム数
+          <input name="frameCount" type="number" min="1" required>
+        </label>
+        <label>フレーム間隔（秒）
+          <input name="frameIntervalSeconds" type="number" min="1" required>
+        </label>
+        <label>結果ファイルの出力先（任意）
+          <input name="resultDirectory">
+        </label>
+        <label>動画（起動時に <code>VIDEO_PATH</code> で指定）
+          <input name="videoPath" readonly placeholder="動画なし">
+        </label>
+        <label>動画の開始時刻（空なら開始時刻と同じ）
+          <input name="videoStartTime" placeholder="2022-06-04T12:05:12+08:00">
+        </label>
+      </fieldset>
+      <button type="submit">実行</button>
+      <p id="status" role="status"></p>
+    </form>
+
+    <section id="viewer" class="panel" hidden>
+      <div id="stage" class="stage">
+        <video id="video" muted playsinline hidden></video>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="controls">
+        <button type="button" id="play">再生</button>
+        <input type="range" id="seek" min="0" max="0" value="0" aria-label="フレーム">
+        <span id="frame-label"></span>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch"></span>AISの投影位置（線はそこまでの軌跡）</li>
+        <li><span class="box"></span>検出・追跡のbbox（色は紐づいたMMSI）</li>
+        <li><span class="box unmatched"></span>AISが紐づいていないbbox</li>
+      </ul>
+      <div class="tables">
+        <table>
+          <caption>融合結果</caption>
+          <thead><tr><th>トラック</th><th>MMSI</th><th>bbox (x1, y1, x2, y2)</th></tr></thead>
+          <tbody id="fusion-rows"></tbody>
+        </table>
+        <table>
+          <caption>カメラに映っているAIS</caption>
+          <thead><tr><th>MMSI</th><th>ピクセル (x, y)</th><th>速度 (kt)</th><th>針路 (°)</th></tr></thead>
+          <tbody id="vessel-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="viewer.js"></script>
+</body>
+</html>

@@ -77,7 +77,11 @@ POST /api/vessel-tracking/runs
 （detectionはidが常に0、fusionはMMSIが紐づいたトラックのみ）。
 
 フレームごとにAIS処理→検出→追跡→融合を実行し、各フレームの「カメラに映っているAISレコード
-（ピクセル座標付き）」「映像トラック」「融合結果」をJSONで返す。動画のデコードは行わず、
+（ピクセル座標付き）」「映像トラック」「融合結果」と、投影先の画像サイズ（`imageWidth`/`imageHeight`）を
+JSONで返す。
+
+可視化画面（`src/Web/wwwroot/`）用に、フォームの既定値を返す `GET /api/vessel-tracking/run-defaults`
+と、起動時に設定した動画（`RunDefaults:VideoPath`）を返す `GET /api/vessel-tracking/video` もある。動画のデコードは行わず、
 `frameCount`件のダミーフレームとして処理する（issue #1の「映像またはダミーのフレーム列」の
 許容範囲内）。
 
@@ -87,14 +91,24 @@ POST /api/vessel-tracking/runs
 task run
 ```
 
-Web APIを起動して `POST /api/vessel-tracking/runs` を1回送り、結果のJSONを表示してからAPIを停止する。
-既定では同梱の `sample-data/` を使う。別のデータで実行する場合は変数で上書きする
+Web APIを起動し、`http://localhost:5000/` で可視化画面を開けるようにする（Ctrl+Cで停止）。画面は
+パイプラインを実行し、各フレームのAIS投影位置（と軌跡）・検出/追跡のbbox・融合結果（紐づいたMMSI）を
+描画する。フォームの既定値は同梱の `sample-data/` で、変数で上書きできる
 （`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR`）。
+
+`VIDEO_PATH` に動画を指定すると、その上に重ねて描画する（動画の開始時刻は画面で指定でき、空なら
+開始時刻と同じとみなす）。clip-01の例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
+
+```sh
+task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_para.txt \
+  VIDEO_PATH=/workspace/clip-01/2022_06_04_12_05_12_12_07_02_b.mp4 \
+  START_TIME=2022-06-04T12:05:12+08:00 FRAME_COUNT=100 FRAME_INTERVAL_SECONDS=1
+```
 
 ### 動作確認
 
 `sample-data/` に合成サンプルデータ（AIS 4隻分＋カメラパラメータ）を同梱している。
-`task run` は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
+`task run` の画面は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 サンプルデータの4隻は、パイプラインの各段が効いていることを1回のリクエストで確認できるように
 選んである（詳細は [`sample-data/README.md`](./sample-data/README.md)）。

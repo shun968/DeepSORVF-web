@@ -31,7 +31,7 @@ public sealed class VesselTrackingPipeline
         _fusionService = fusionService;
     }
 
-    public IReadOnlyList<FrameResult> ProcessFrames(
+    public VesselTrackingRunResult ProcessFrames(
         string aisDirectoryPath,
         string cameraParametersPath,
         DateTimeOffset startTimeUtc,
@@ -47,6 +47,11 @@ public sealed class VesselTrackingPipeline
         // which saves carrying the image size around for this one use.
         var maxMatchDistancePixels = Math.Min(parameters.PrincipalPointX, parameters.PrincipalPointY);
 
+        // The principal point sits at the image centre, so doubling it recovers the frame
+        // size the original clamps its boxes to.
+        var imageWidth = parameters.PrincipalPointX * 2;
+        var imageHeight = parameters.PrincipalPointY * 2;
+
         var results = new List<FrameResult>(frameCount);
         for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
         {
@@ -61,22 +66,18 @@ public sealed class VesselTrackingPipeline
 
         if (resultDirectoryPath is not null)
         {
-            WriteResults(results, parameters, resultDirectoryPath);
+            WriteResults(results, imageWidth, imageHeight, resultDirectoryPath);
         }
 
-        return results;
+        return new VesselTrackingRunResult(imageWidth, imageHeight, results);
     }
 
     private void WriteResults(
         IReadOnlyList<FrameResult> results,
-        CameraParameters parameters,
+        double imageWidth,
+        double imageHeight,
         string resultDirectoryPath)
     {
-        // The principal point sits at the image centre, so doubling it recovers the frame
-        // size the original clamps its boxes to.
-        var imageWidth = parameters.PrincipalPointX * 2;
-        var imageHeight = parameters.PrincipalPointY * 2;
-
         _motResultWriter.Write(
             resultDirectoryPath, MotResultKind.Detection, MotResultRows.Detections(results, imageWidth, imageHeight));
         _motResultWriter.Write(

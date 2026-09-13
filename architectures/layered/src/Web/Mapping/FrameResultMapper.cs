@@ -6,8 +6,8 @@ namespace LayeredArchitecture.Web.Mapping;
 
 public static class FrameResultMapper
 {
-    public static VesselTrackingRunResponse ToResponse(IReadOnlyList<FrameResult> frames) =>
-        new(frames.Select(ToDto).ToList());
+    public static VesselTrackingRunResponse ToResponse(VesselTrackingRunResult run) =>
+        new(run.ImageWidth, run.ImageHeight, run.Frames.Select(ToDto).ToList());
 
     private static FrameResultDto ToDto(FrameResult frame) => new(
         frame.FrameIndex,

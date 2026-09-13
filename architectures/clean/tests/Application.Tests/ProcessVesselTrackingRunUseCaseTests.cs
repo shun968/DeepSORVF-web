@@ -81,11 +81,13 @@ public class ProcessVesselTrackingRunUseCaseTests
         var fusionEngine = new Mock<IFusionEngine>();
         var useCase = CreateUseCase(fusionEngine.Object);
 
-        useCase.Execute(new ProcessVesselTrackingRunRequest(
+        var response = useCase.Execute(new ProcessVesselTrackingRunRequest(
             AisDirectory, CameraPath, Start, FrameCount: 1, TimeSpan.FromSeconds(1)));
 
         // The principal point sits at the image centre: 960x540 means a 1920x1080 frame and
         // a min(width, height) / 2 gate of 540.
+        Assert.Equal(1920, response.ImageWidth);
+        Assert.Equal(1080, response.ImageHeight);
         fusionEngine.Verify(f => f.Fuse(
             It.IsAny<IReadOnlyList<Track>>(),
             It.IsAny<IReadOnlyList<VisibleVessel>>(),

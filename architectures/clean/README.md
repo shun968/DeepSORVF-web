@@ -60,14 +60,24 @@ issue #2のスコープ（最小フローが動けばよい、検出・追跡は
 task run
 ```
 
-Web APIを起動して `POST /api/vessel-tracking/runs` を1回送り、結果のJSONを表示してからAPIを停止する。
-既定では同梱の `sample-data/` を使う。別のデータで実行する場合は変数で上書きする
+Web APIを起動し、`http://localhost:5000/` で可視化画面を開けるようにする（Ctrl+Cで停止）。画面は
+パイプラインを実行し、各フレームのAIS投影位置（と軌跡）・検出/追跡のbbox・融合結果（紐づいたMMSI）を
+描画する。フォームの既定値は同梱の `sample-data/` で、変数で上書きできる
 （`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS`）。
+
+`VIDEO_PATH` に動画を指定すると、その上に重ねて描画する（動画の開始時刻は画面で指定でき、空なら
+開始時刻と同じとみなす）。clip-01の例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
+
+```sh
+task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_para.txt \
+  VIDEO_PATH=/workspace/clip-01/2022_06_04_12_05_12_12_07_02_b.mp4 \
+  START_TIME=2022-06-04T12:05:12+08:00 FRAME_COUNT=100 FRAME_INTERVAL_SECONDS=1
+```
 
 ### 動作確認
 
 `sample-data/` に合成サンプルデータを同梱している（内容はlayered側と同じ）。
-`task run` は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
+`task run` の画面は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 AISの投影座標・視野判定・距離ゲート・位置推算はlayered側と同じ結果になる（同じ幾何実装のため）。
 融合結果だけは上記の通りモック検出器の性質から異なる。

@@ -1,6 +1,6 @@
 namespace LayeredArchitecture.Web.Contracts;
 
-public sealed record VesselTrackingRunResponse(IReadOnlyList<FrameResultDto> Frames);
+public sealed record VesselTrackingRunResponse(double ImageWidth, double ImageHeight, IReadOnlyList<FrameResultDto> Frames);
 
 public sealed record FrameResultDto(
     int FrameIndex,
