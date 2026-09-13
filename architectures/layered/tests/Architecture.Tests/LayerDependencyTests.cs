@@ -1,4 +1,5 @@
 using System.Reflection;
+using LayeredArchitecture.Application.Services;
 using LayeredArchitecture.Domain.Services;
 using LayeredArchitecture.Infrastructure.Repositories;
 using NetArchTest.Rules;
@@ -10,6 +11,7 @@ public sealed class LayerDependencyTests
 {
     private static readonly Assembly DomainAssembly = typeof(GreetingService).Assembly;
     private static readonly Assembly InfrastructureAssembly = typeof(CsvAisRepository).Assembly;
+    private static readonly Assembly ApplicationAssembly = typeof(AisService).Assembly;
 
     [Fact]
     public void Domain_Should_Not_Depend_On_OuterLayers()
@@ -61,6 +63,19 @@ public sealed class LayerDependencyTests
                 "Microsoft.AspNetCore",
                 "Microsoft.EntityFrameworkCore",
                 "System.Data.SqlClient")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, FormatFailures(result));
+    }
+
+    [Fact]
+    public void Application_Should_Not_Depend_On_Infrastructure_Or_Web()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(
+                "LayeredArchitecture.Infrastructure",
+                "LayeredArchitecture.Web")
             .GetResult();
 
         Assert.True(result.IsSuccessful, FormatFailures(result));
