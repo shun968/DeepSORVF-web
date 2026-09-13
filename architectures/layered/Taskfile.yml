@@ -5,6 +5,7 @@ vars:
   DOMAIN_PROJ: src/Domain/LayeredArchitecture.Domain.csproj
   DOMAIN_TEST_PROJ: tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj
   ARCHITECTURE_TEST_PROJ: tests/Architecture.Tests/LayeredArchitecture.Architecture.Tests.csproj
+  WEB_INTEGRATION_TEST_PROJ: tests/Web.IntegrationTests/LayeredArchitecture.Web.IntegrationTests.csproj
   WEB_PROJ_DIR: src/Web
   COVERAGE_DIR: TestResults
 
@@ -44,6 +45,11 @@ tasks:
     desc: Verify layer dependency direction (NetArchTest) — e.g. Domain must not depend on Application/Infrastructure/Web
     cmds:
       - dotnet test {{.ARCHITECTURE_TEST_PROJ}}
+
+  test:web:integration:
+    desc: Run Web layer integration tests (WebApplicationFactory, full HTTP round-trip against real AIS files on disk)
+    cmds:
+      - dotnet test {{.WEB_INTEGRATION_TEST_PROJ}}
 
   lint:
     desc: Lint the whole solution (formatting, code style, analyzers) without modifying files

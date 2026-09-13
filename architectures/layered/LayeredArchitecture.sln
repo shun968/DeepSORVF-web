@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Applica
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Application.Tests", "tests\Application.Tests\LayeredArchitecture.Application.Tests.csproj", "{189A6824-D554-48CD-BB9A-640FD9019FD5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Web", "src\Web\LayeredArchitecture.Web.csproj", "{433DC0D9-7527-4412-B8FC-AB4CD3B93688}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LayeredArchitecture.Web.IntegrationTests", "tests\Web.IntegrationTests\LayeredArchitecture.Web.IntegrationTests.csproj", "{2C2533B9-8284-47BE-BBAA-04BE20B82C4D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +54,14 @@ Global
 		{189A6824-D554-48CD-BB9A-640FD9019FD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{189A6824-D554-48CD-BB9A-640FD9019FD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{189A6824-D554-48CD-BB9A-640FD9019FD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{433DC0D9-7527-4412-B8FC-AB4CD3B93688}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{433DC0D9-7527-4412-B8FC-AB4CD3B93688}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{433DC0D9-7527-4412-B8FC-AB4CD3B93688}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{433DC0D9-7527-4412-B8FC-AB4CD3B93688}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C2533B9-8284-47BE-BBAA-04BE20B82C4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C2533B9-8284-47BE-BBAA-04BE20B82C4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C2533B9-8284-47BE-BBAA-04BE20B82C4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C2533B9-8284-47BE-BBAA-04BE20B82C4D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
