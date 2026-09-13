@@ -20,6 +20,25 @@ public class FusionServiceTests
 
     private static AisFrame AisFrame(params ProjectedAisRecord[] records) => new(records, records);
 
+    // Four matching frames (seconds 0-3) is enough to bind track 1 to vessel 431234567.
+    private void BindTrackOneToTheVessel()
+    {
+        for (var second = 0; second < 4; second++)
+        {
+            var at = Start.AddSeconds(second);
+            _service.Fuse(Visual(Track(1, 960, 700, at)), AisFrame(Ais(431234567, 958, 702, at)), Gate, at);
+        }
+    }
+
+    // Track 1 back beside the bound vessel, with a second vessel sitting exactly on it: only a
+    // pairing that is still bound keeps 431234567 over the nearer 431999999.
+    private IReadOnlyList<FusedTrack> FuseWithANearerVesselAt(DateTimeOffset at) =>
+        _service.Fuse(
+            Visual(Track(1, 960, 700, at)),
+            AisFrame(Ais(431234567, 958, 702, at), Ais(431999999, 960, 700, at)),
+            Gate,
+            at);
+
     [Fact]
     public void Fuse_BindsATrackToTheVesselItOverlaps()
     {
@@ -78,12 +97,7 @@ public class FusionServiceTests
     [Fact]
     public void Fuse_KeepsABoundPairWhenANearerVesselAppears()
     {
-        // Four matching frames is enough to bind track 1 to this vessel.
-        for (var second = 0; second < 4; second++)
-        {
-            var at = Start.AddSeconds(second);
-            _service.Fuse(Visual(Track(1, 960, 700, at)), AisFrame(Ais(431234567, 958, 702, at)), Gate, at);
-        }
+        BindTrackOneToTheVessel();
 
         var later = Start.AddSeconds(4);
         var fused = _service.Fuse(
@@ -132,5 +146,65 @@ public class FusionServiceTests
         Assert.Equal(7, fused.TrackId);
         Assert.Same(track.Box, fused.Box);
         Assert.Equal(Start, fused.Timestamp);
+    }
+
+    [Fact]
+    public void Fuse_KeepsABoundPairThroughABriefMiss()
+    {
+        BindTrackOneToTheVessel();
+
+        // The track jumps away for one frame, so the pairing fails the distance check.
+        var missedAt = Start.AddSeconds(4);
+        var missed = _service.Fuse(
+            Visual(Track(1, 100, 100, missedAt)),
+            AisFrame(Ais(431234567, 958, 702, missedAt)),
+            Gate,
+            missedAt);
+
+        Assert.Null(Assert.Single(missed).MatchedAis);
+        Assert.Equal(431234567, Assert.Single(FuseWithANearerVesselAt(Start.AddSeconds(5))).MatchedAis!.Mmsi);
+    }
+
+    [Fact]
+    public void Fuse_ForgetsABoundPairMissedForThreeSeconds()
+    {
+        BindTrackOneToTheVessel();
+
+        for (var second = 4; second < 7; second++)
+        {
+            var at = Start.AddSeconds(second);
+            _service.Fuse(Visual(Track(1, 100, 100, at)), AisFrame(Ais(431234567, 958, 702, at)), Gate, at);
+        }
+
+        Assert.Equal(431999999, Assert.Single(FuseWithANearerVesselAt(Start.AddSeconds(7))).MatchedAis!.Mmsi);
+    }
+
+    [Fact]
+    public void Fuse_ForgetsABoundPairOnceItsVesselLeavesTheFrame()
+    {
+        BindTrackOneToTheVessel();
+
+        var goneAt = Start.AddSeconds(4);
+        _service.Fuse(Visual(Track(1, 960, 700, goneAt)), AisFrame(), Gate, goneAt);
+
+        Assert.Equal(431999999, Assert.Single(FuseWithANearerVesselAt(Start.AddSeconds(5))).MatchedAis!.Mmsi);
+    }
+
+    [Fact]
+    public void Fuse_BindsTwoTracksToTheirOwnVesselsIndependently()
+    {
+        IReadOnlyList<FusedTrack> fused = [];
+        for (var second = 0; second < 5; second++)
+        {
+            var at = Start.AddSeconds(second);
+            fused = _service.Fuse(
+                Visual(Track(1, 300, 700, at), Track(2, 1500, 700, at)),
+                AisFrame(Ais(431000001, 302, 702, at), Ais(431000002, 1498, 702, at)),
+                Gate,
+                at);
+        }
+
+        Assert.Equal(431000001, fused[0].MatchedAis!.Mmsi);
+        Assert.Equal(431000002, fused[1].MatchedAis!.Mmsi);
     }
 }

@@ -151,6 +151,35 @@ public class AisServiceTests
     }
 
     [Fact]
+    public void Process_DoesNotDuplicateAVesselReportedAgainTheNextSecond()
+    {
+        var service = CreateService(
+            (Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]),
+            (Start.AddSeconds(1), [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 796, Start.AddSeconds(1))]));
+        service.Process(AisDirectory, Camera, Start);
+
+        var second = service.Process(AisDirectory, Camera, Start.AddSeconds(1)).Visible;
+
+        Assert.Equal(Start.AddSeconds(1), Assert.Single(second).Record.Timestamp);
+    }
+
+    [Fact]
+    public void Process_KeepsTheHistoryOfAVesselThatPassesBelowTheFrame()
+    {
+        // 50m out, a vessel is under the bottom edge of the vertical field of view: it is not
+        // projected, but unlike leaving sideways its trajectory is kept.
+        var service = CreateService(
+            (Start, [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800, Start)]),
+            (Start.AddSeconds(1), [VesselAt(431234567, bearingDegrees: 90, distanceMeters: 50, Start.AddSeconds(1))]));
+        service.Process(AisDirectory, Camera, Start);
+
+        var frame = service.Process(AisDirectory, Camera, Start.AddSeconds(1));
+
+        Assert.Empty(frame.Visible);
+        Assert.Equal(Start, Assert.Single(frame.History).Record.Timestamp);
+    }
+
+    [Fact]
     public void Process_WithNoRecords_ReturnsEmpty()
     {
         Assert.Empty(CreateService().Process(AisDirectory, Camera, Start).Visible);

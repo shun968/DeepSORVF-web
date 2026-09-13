@@ -87,22 +87,14 @@ POST /api/vessel-tracking/runs
 task run
 ```
 
+Web APIを起動して `POST /api/vessel-tracking/runs` を1回送り、結果のJSONを表示してからAPIを停止する。
+既定では同梱の `sample-data/` を使う。別のデータで実行する場合は変数で上書きする
+（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR`）。
+
 ### 動作確認
 
 `sample-data/` に合成サンプルデータ（AIS 4隻分＋カメラパラメータ）を同梱している。
-`task run` で起動したうえで、別のシェルから:
-
-```sh
-curl -s -X POST http://localhost:5000/api/vessel-tracking/runs \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "aisDataDirectory": "'"$PWD"'/sample-data/ais",
-    "cameraParametersPath": "'"$PWD"'/sample-data/camera.txt",
-    "startTime": "2021-01-01T12:00:00Z",
-    "frameCount": 3,
-    "frameIntervalSeconds": 60
-  }' | jq .
-```
+`task run` は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 サンプルデータの4隻は、パイプラインの各段が効いていることを1回のリクエストで確認できるように
 選んである（詳細は [`sample-data/README.md`](./sample-data/README.md)）。

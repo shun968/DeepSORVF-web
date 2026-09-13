@@ -79,10 +79,9 @@ public sealed class AisService
             seen.Add(record.Mmsi);
         }
 
-        foreach (var previous in _previousSecond.Where(previous => !seen.Contains(previous.Mmsi)))
-        {
-            current.Add(previous.PredictAt(timestampUtc));
-        }
+        current.AddRange(_previousSecond
+            .Where(previous => !seen.Contains(previous.Mmsi))
+            .Select(previous => previous.PredictAt(timestampUtc)));
 
         return current;
     }

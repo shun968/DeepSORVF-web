@@ -2,8 +2,7 @@ version: "3"
 
 vars:
   SOLUTION: LayeredArchitecture.sln
-  DOMAIN_PROJ: src/Domain/LayeredArchitecture.Domain.csproj
-  DOMAIN_TEST_PROJ: tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj
+  UNIT_TEST_LAYERS: Domain Application Infrastructure
   ARCHITECTURE_TEST_PROJ: tests/Architecture.Tests/LayeredArchitecture.Architecture.Tests.csproj
   WEB_INTEGRATION_TEST_PROJ: tests/Web.IntegrationTests/LayeredArchitecture.Web.IntegrationTests.csproj
   WEB_PROJ_DIR: src/Web
@@ -15,31 +14,71 @@ tasks:
     cmds:
       - dotnet build {{.SOLUTION}}
 
-  build:domain:
-    desc: Compile the Domain layer only
-    cmds:
-      - dotnet build {{.DOMAIN_PROJ}}
-
   run:
-    desc: Run the Web (Presentation) layer app
+    desc: Run the pipeline locally on the bundled sample-data — starts the Web (Presentation) layer app, POSTs one run, prints the JSON response and stops the app; override AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to run other data
+    vars:
+      PORT: '{{.PORT | default "5000"}}'
+      AIS_DIR: '{{.AIS_DIR | default (print .TASKFILE_DIR "/sample-data/ais")}}'
+      CAMERA_PARAMS: '{{.CAMERA_PARAMS | default (print .TASKFILE_DIR "/sample-data/camera.txt")}}'
+      START_TIME: '{{.START_TIME | default "2021-01-01T12:00:00Z"}}'
+      FRAME_COUNT: '{{.FRAME_COUNT | default "3"}}'
+      FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS | default "60"}}'
+      RESULT_DIR: '{{.RESULT_DIR | default ""}}'
+    env:
+      WEB_PROJ_DIR: '{{.WEB_PROJ_DIR}}'
+      PORT: '{{.PORT}}'
+      AIS_DIR: '{{.AIS_DIR}}'
+      CAMERA_PARAMS: '{{.CAMERA_PARAMS}}'
+      START_TIME: '{{.START_TIME}}'
+      FRAME_COUNT: '{{.FRAME_COUNT}}'
+      FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS}}'
+      RESULT_DIR: '{{.RESULT_DIR}}'
     cmds:
-      - dotnet run --project {{.WEB_PROJ_DIR}}
+      # Build output goes to stderr so stdout carries only the JSON response (e.g. for `task run | jq`).
+      - dotnet build {{.WEB_PROJ_DIR}} >&2
+      # Task's built-in shell has no job control (no usable $! or kill), so the start/stop runs in bash.
+      - |
+        bash -euo pipefail <<'EOF'
+        dotnet run --no-build --project "$WEB_PROJ_DIR" --urls "http://localhost:$PORT" --Logging:LogLevel:Default=Warning >&2 &
+        server=$!
+        trap 'kill "$server"' EXIT
+        until (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; do
+          kill -0 "$server"
+          sleep 0.2
+        done
+        request=$(jq -n \
+          --arg aisDataDirectory "$AIS_DIR" \
+          --arg cameraParametersPath "$CAMERA_PARAMS" \
+          --arg startTime "$START_TIME" \
+          --argjson frameCount "$FRAME_COUNT" \
+          --argjson frameIntervalSeconds "$FRAME_INTERVAL_SECONDS" \
+          --arg resultDirectory "$RESULT_DIR" \
+          '{$aisDataDirectory, $cameraParametersPath, $startTime, $frameCount, $frameIntervalSeconds}
+            + (if $resultDirectory == "" then {} else {$resultDirectory} end)')
+        if ! response=$(curl --silent --show-error --fail-with-body \
+          -X POST "http://localhost:$PORT/api/vessel-tracking/runs" \
+          -H 'Content-Type: application/json' \
+          --data "$request"); then
+          echo "$response" >&2
+          exit 1
+        fi
+        jq . <<<"$response"
+        EOF
 
   test:
     desc: Run tests for all layers
     cmds:
       - dotnet test {{.SOLUTION}}
 
-  test:domain:unit:
-    desc: Run Domain layer unit tests with line/branch/method coverage, failing if any falls below the threshold (default 100); lcov.info viewable in Coverage Gutters, and a shareable HTML report is generated via genhtml (TestResults/Domain.Tests/report/index.html)
+  test:unit:
+    desc: Run every layer's unit tests (Domain, Application, Infrastructure), each measuring line/branch/method coverage of the layer it tests and failing if any falls below the threshold (default 100); lcov.info viewable in Coverage Gutters, and a shareable HTML report per layer is generated via genhtml (TestResults/<Layer>.Tests/report/index.html)
     vars:
-      THRESHOLD: "100"
+      THRESHOLD: '{{.THRESHOLD | default "100"}}'
     cmds:
-      - dotnet test {{.DOMAIN_TEST_PROJ}} /p:CollectCoverage=true /p:CoverletOutputFormat=\"lcov,cobertura\" /p:CoverletOutput=../../{{.COVERAGE_DIR}}/Domain.Tests/ /p:Threshold={{.THRESHOLD}} /p:ThresholdType=\"line,branch,method\" /p:ThresholdStat=total
-      - genhtml {{.COVERAGE_DIR}}/Domain.Tests/coverage.info -o {{.COVERAGE_DIR}}/Domain.Tests/report
-
-  # 結合テストを追加する際は、xUnitプロジェクトを <Layer>.IntegrationTests という名前で
-  # tests/ 配下に作成し、test:domain:integration を追加すること。
+      - for: { var: UNIT_TEST_LAYERS }
+        cmd: dotnet test tests/{{.ITEM}}.Tests/LayeredArchitecture.{{.ITEM}}.Tests.csproj /p:CollectCoverage=true '/p:Include="[LayeredArchitecture.{{.ITEM}}]*"' /p:CoverletOutputFormat=\"lcov,cobertura\" /p:CoverletOutput=../../{{.COVERAGE_DIR}}/{{.ITEM}}.Tests/ /p:Threshold={{.THRESHOLD}} /p:ThresholdType=\"line,branch,method\" /p:ThresholdStat=total
+      - for: { var: UNIT_TEST_LAYERS }
+        cmd: genhtml {{.COVERAGE_DIR}}/{{.ITEM}}.Tests/coverage.info -o {{.COVERAGE_DIR}}/{{.ITEM}}.Tests/report
 
   test:architecture:
     desc: Verify layer dependency direction (NetArchTest) — e.g. Domain must not depend on Application/Infrastructure/Web

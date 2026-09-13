@@ -50,6 +50,14 @@ public class MockTests
     }
 
     [Fact]
+    public void MockDetector_WithAZeroWidthFrame_LeavesTheBoxesUnwrapped()
+    {
+        var detections = new MockDetector().Detect(new VideoFrame(1, Timestamp, 0, 1080));
+
+        Assert.All(detections, detection => Assert.Equal(40, detection.CenterX));
+    }
+
+    [Fact]
     public void SequentialTracker_NumbersTracksFromOne()
     {
         Detection[] detections = [new(0, 0, 10, 10, Timestamp), new(20, 20, 30, 30, Timestamp)];
