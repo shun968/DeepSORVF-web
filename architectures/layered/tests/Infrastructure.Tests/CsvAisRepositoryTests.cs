@@ -88,6 +88,17 @@ public class CsvAisRepositoryTests : IDisposable
         Assert.Empty(_repository.GetRecordsAt(_directory, timestamp));
     }
 
+    [Fact]
+    public void GetRecordsAt_SkipsBlankLines()
+    {
+        var timestamp = new DateTimeOffset(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        WriteCsv(timestamp, ["431234567,121.5,29.87,5.2,45,47,30,1609502400000", "", "431987654,121.6,29.88,8,90,90,70,1609502400000"]);
+
+        var records = _repository.GetRecordsAt(_directory, timestamp);
+
+        Assert.Equal(new long[] { 431234567, 431987654 }, records.Select(record => record.Mmsi));
+    }
+
     private void WriteRawFile(DateTimeOffset timestamp, params string[] lines)
     {
         var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";

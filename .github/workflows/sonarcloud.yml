@@ -49,8 +49,10 @@ jobs:
           dotnet build architectures/clean/CleanArchitecture.sln
           for project in \
             architectures/layered/tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj \
+            architectures/layered/tests/Application.Tests/LayeredArchitecture.Application.Tests.csproj \
             architectures/layered/tests/Infrastructure.Tests/LayeredArchitecture.Infrastructure.Tests.csproj \
             architectures/clean/tests/Domain.Tests/CleanArchitecture.Domain.Tests.csproj \
+            architectures/clean/tests/Application.Tests/CleanArchitecture.Application.Tests.csproj \
             architectures/clean/tests/Infrastructure.Tests/CleanArchitecture.Infrastructure.Tests.csproj; do
             dotnet test "$project" \
               /p:CollectCoverage=true \

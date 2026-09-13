@@ -114,6 +114,16 @@ public class AdapterTests : IDisposable
         Assert.Empty(new CsvAisReader().ReadAt(_directory, Timestamp));
     }
 
+    [Fact]
+    public void CsvAisReader_SkipsBlankLines()
+    {
+        WriteAisCsv(Timestamp, ["431234567,121.5,29.87,5.2,45,47,30,1609502400000", "", "431987654,121.6,29.88,8,90,90,70,1609502400000"]);
+
+        var records = new CsvAisReader().ReadAt(_directory, Timestamp);
+
+        Assert.Equal(new long[] { 431234567, 431987654 }, records.Select(record => record.Mmsi));
+    }
+
     private void WriteRawAisFile(DateTimeOffset timestamp, params string[] lines)
     {
         var fileName = timestamp.ToString("yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture) + ".csv";

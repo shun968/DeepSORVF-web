@@ -1,2 +1,9 @@
+# .NET build output
+bin/
+obj/
+
+# Coverage reports (task test:unit)
+TestResults/
+
 # OpenCover report generated for SonarCloud CI (see .github/workflows/sonarcloud.yml)
 coverage.opencover.xml

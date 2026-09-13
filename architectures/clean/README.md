@@ -60,22 +60,14 @@ issue #2のスコープ（最小フローが動けばよい、検出・追跡は
 task run
 ```
 
+Web APIを起動して `POST /api/vessel-tracking/runs` を1回送り、結果のJSONを表示してからAPIを停止する。
+既定では同梱の `sample-data/` を使う。別のデータで実行する場合は変数で上書きする
+（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR`）。
+
 ### 動作確認
 
 `sample-data/` に合成サンプルデータを同梱している（内容はlayered側と同じ）。
-`task run` で起動したうえで、別のシェルから:
-
-```sh
-curl -s -X POST http://localhost:5000/api/vessel-tracking/runs \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "aisDataDirectory": "'"$PWD"'/sample-data/ais",
-    "cameraParametersPath": "'"$PWD"'/sample-data/camera.txt",
-    "startTime": "2021-01-01T12:00:00Z",
-    "frameCount": 3,
-    "frameIntervalSeconds": 60
-  }' | jq .
-```
+`task run` は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 AISの投影座標・視野判定・距離ゲート・位置推算はlayered側と同じ結果になる（同じ幾何実装のため）。
 融合結果だけは上記の通りモック検出器の性質から異なる。
