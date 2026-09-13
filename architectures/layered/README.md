@@ -93,11 +93,12 @@ task run
 
 Web APIを起動し、`http://localhost:5000/` で可視化画面を開けるようにする（Ctrl+Cで停止）。画面は
 パイプラインを実行し、各フレームのAIS投影位置（と軌跡）・検出/追跡のbbox・融合結果（紐づいたMMSI）を
-描画する。フォームの既定値は同梱の `sample-data/` で、変数で上書きできる
-（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR`）。
+描画する。フォームの既定値は、リポジトリ直下に `clip-01/`（FVesselのテストデータ）があればそのAIS・
+カメラパラメータ・動画（開始時刻と長さは動画のファイル名から求める）、無ければ同梱の合成データ
+`sample-data/`（動画なし）で、変数で上書きできる（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR` / `VIDEO_PATH`）。
 
 `VIDEO_PATH` に動画を指定すると、その上に重ねて描画する（動画の開始時刻は画面で指定でき、空なら
-開始時刻と同じとみなす）。clip-01の例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
+開始時刻と同じとみなす）。別の場所のデータを指定する例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
 
 ```sh
 task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_para.txt \
@@ -108,7 +109,7 @@ task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_
 ### 動作確認
 
 `sample-data/` に合成サンプルデータ（AIS 4隻分＋カメラパラメータ）を同梱している。
-`task run` の画面は既定でこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
+`clip-01/` が無い場合、`task run` の画面はこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 サンプルデータの4隻は、パイプラインの各段が効いていることを1回のリクエストで確認できるように
 選んである（詳細は [`sample-data/README.md`](./sample-data/README.md)）。

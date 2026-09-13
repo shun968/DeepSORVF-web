@@ -15,15 +15,35 @@ tasks:
       - dotnet build {{.SOLUTION}}
 
   run:
-    desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video given as VIDEO_PATH; its form opens on the bundled sample-data unless AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR are overridden
+    desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video when there is one; its form opens on the FVessel clip in the repository root's clip-01/ (with its video) when that is present, otherwise on the bundled synthetic sample-data (no video); override AIS_DIR, CAMERA_PARAMS, VIDEO_PATH, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to open other data
     vars:
       PORT: '{{.PORT | default "5000"}}'
-      AIS_DIR: '{{.AIS_DIR | default (print .TASKFILE_DIR "/sample-data/ais")}}'
-      CAMERA_PARAMS: '{{.CAMERA_PARAMS | default (print .TASKFILE_DIR "/sample-data/camera.txt")}}'
-      VIDEO_PATH: '{{.VIDEO_PATH | default ""}}'
-      START_TIME: '{{.START_TIME | default "2021-01-01T12:00:00Z"}}'
-      FRAME_COUNT: '{{.FRAME_COUNT | default "3"}}'
-      FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS | default "60"}}'
+      # The FVessel test clip, placed at the repository root (gitignored, see the root README).
+      CLIP_DIR: '{{.CLIP_DIR | default (print (dir (dir .TASKFILE_DIR)) "/clip-01")}}'
+      CLIP_VIDEO:
+        sh: ls "{{.CLIP_DIR}}"/*.mp4 2>/dev/null | head -n 1 || true
+      CLIP_CAMERA:
+        sh: ls "{{.CLIP_DIR}}"/*.txt 2>/dev/null | head -n 1 || true
+      # The clip's video file name holds its start and end in local time (UTC+8, where FVessel
+      # was recorded): <yyyy_MM_dd_HH_mm_ss of the start>_<HH_mm_ss of the end>_....mp4
+      CLIP_START:
+        sh: |
+          basename "{{.CLIP_VIDEO}}" | sed -nE 's/^([0-9]{4})_([0-9]{2})_([0-9]{2})_([0-9]{2})_([0-9]{2})_([0-9]{2})_.*/\1-\2-\3T\4:\5:\6+08:00/p'
+      CLIP_SECONDS:
+        sh: |
+          name=$(basename "{{.CLIP_VIDEO}}")
+          day=$(echo "$name" | sed -nE 's/^([0-9]{4})_([0-9]{2})_([0-9]{2})_.*/\1-\2-\3/p')
+          start=$(echo "$name" | sed -nE 's/^[0-9]{4}_[0-9]{2}_[0-9]{2}_([0-9]{2})_([0-9]{2})_([0-9]{2})_.*/\1:\2:\3/p')
+          end=$(echo "$name" | sed -nE 's/^([0-9]+_){6}([0-9]{2})_([0-9]{2})_([0-9]{2})_.*/\2:\3:\4/p')
+          if [ -n "$end" ]; then echo $(( $(date -d "$day $end" +%s) - $(date -d "$day $start" +%s) )); fi
+      # Use the clip only when it is complete and no other AIS data or calibration was asked for.
+      USE_CLIP: '{{if and .CLIP_VIDEO .CLIP_CAMERA .CLIP_START (not .AIS_DIR) (not .CAMERA_PARAMS)}}true{{end}}'
+      AIS_DIR: '{{if .AIS_DIR}}{{.AIS_DIR}}{{else if .USE_CLIP}}{{.CLIP_DIR}}/ais{{else}}{{.TASKFILE_DIR}}/sample-data/ais{{end}}'
+      CAMERA_PARAMS: '{{if .CAMERA_PARAMS}}{{.CAMERA_PARAMS}}{{else if .USE_CLIP}}{{.CLIP_CAMERA}}{{else}}{{.TASKFILE_DIR}}/sample-data/camera.txt{{end}}'
+      VIDEO_PATH: '{{if .VIDEO_PATH}}{{.VIDEO_PATH}}{{else if .USE_CLIP}}{{.CLIP_VIDEO}}{{end}}'
+      START_TIME: '{{if .START_TIME}}{{.START_TIME}}{{else if .USE_CLIP}}{{.CLIP_START}}{{else}}2021-01-01T12:00:00Z{{end}}'
+      FRAME_COUNT: '{{if .FRAME_COUNT}}{{.FRAME_COUNT}}{{else if and .USE_CLIP .CLIP_SECONDS}}{{.CLIP_SECONDS}}{{else if .USE_CLIP}}100{{else}}3{{end}}'
+      FRAME_INTERVAL_SECONDS: '{{if .FRAME_INTERVAL_SECONDS}}{{.FRAME_INTERVAL_SECONDS}}{{else if .USE_CLIP}}1{{else}}60{{end}}'
       RESULT_DIR: '{{.RESULT_DIR | default ""}}'
     env:
       RunDefaults__AisDataDirectory: '{{.AIS_DIR}}'
