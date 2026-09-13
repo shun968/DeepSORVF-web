@@ -1,3 +1,5 @@
+using LayeredArchitecture.Domain.Geometry;
+
 namespace LayeredArchitecture.Domain.Entities;
 
 public sealed class AisRecord
@@ -46,4 +48,22 @@ public sealed class AisRecord
         && CourseDegrees is >= 0 and < 360
         && HeadingDegrees is >= 0 and < 360
         && SpeedKnots > 0.3;
+
+    // Dead reckoning, ported from utils/AIS_utils.py's data_pre: AIS messages arrive
+    // irregularly, so a vessel's position is carried forward along its last known course
+    // at its last known speed for the seconds no message covers.
+    //
+    // The original short-circuits speed == 0 to a timestamp-only update; that is left out
+    // here because it is the same result (zero speed gives zero distance, and a geodesic
+    // of zero length ends where it started) and because data_coarse_process has already
+    // dropped anything at or below 0.3kt by this point.
+    public AisRecord PredictAt(DateTimeOffset timestampUtc)
+    {
+        const double MetersPerNauticalMile = 1852;
+
+        var distanceMeters = SpeedKnots * (timestampUtc - Timestamp).TotalHours * MetersPerNauticalMile;
+        var (latitude, longitude) = GeoMath.Destination(Latitude, Longitude, CourseDegrees, distanceMeters);
+
+        return new AisRecord(Mmsi, longitude, latitude, SpeedKnots, CourseDegrees, HeadingDegrees, ShipType, timestampUtc);
+    }
 }
