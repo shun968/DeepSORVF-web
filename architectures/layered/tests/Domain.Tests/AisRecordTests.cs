@@ -1,4 +1,5 @@
 using LayeredArchitecture.Domain.Entities;
+using LayeredArchitecture.Domain.Geometry;
 using Xunit;
 
 namespace LayeredArchitecture.Domain.Tests;
@@ -104,5 +105,45 @@ public class AisRecordTests
     public void IsValid_WithSpeedAtOrBelowThreshold_ReturnsFalse()
     {
         Assert.False(CreateValid(speedKnots: 0.3).IsValid);
+    }
+
+    [Fact]
+    public void PredictAt_MovesTheVesselAlongItsCourseAtItsSpeed()
+    {
+        var record = CreateValid(speedKnots: 10, courseDegrees: 90);
+
+        var predicted = record.PredictAt(record.Timestamp.AddHours(1));
+
+        // 10 knots for an hour is 10 nautical miles.
+        var travelled = GeoMath.DistanceMeters(record.Latitude, record.Longitude, predicted.Latitude, predicted.Longitude);
+        Assert.Equal(10 * 1852, travelled, 1);
+        Assert.Equal(90, GeoMath.InitialBearingDegrees(record.Latitude, record.Longitude, predicted.Latitude, predicted.Longitude), 3);
+    }
+
+    [Fact]
+    public void PredictAt_CarriesTheRemainingFieldsAndTheNewTimestamp()
+    {
+        var record = CreateValid();
+        var target = record.Timestamp.AddSeconds(30);
+
+        var predicted = record.PredictAt(target);
+
+        Assert.Equal(target, predicted.Timestamp);
+        Assert.Equal(record.Mmsi, predicted.Mmsi);
+        Assert.Equal(record.SpeedKnots, predicted.SpeedKnots);
+        Assert.Equal(record.CourseDegrees, predicted.CourseDegrees);
+        Assert.Equal(record.HeadingDegrees, predicted.HeadingDegrees);
+        Assert.Equal(record.ShipType, predicted.ShipType);
+    }
+
+    [Fact]
+    public void PredictAt_WithNoElapsedTime_LeavesThePositionUnchanged()
+    {
+        var record = CreateValid();
+
+        var predicted = record.PredictAt(record.Timestamp);
+
+        Assert.Equal(record.Latitude, predicted.Latitude, 9);
+        Assert.Equal(record.Longitude, predicted.Longitude, 9);
     }
 }
