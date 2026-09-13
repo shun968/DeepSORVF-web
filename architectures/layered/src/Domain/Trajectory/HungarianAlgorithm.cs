@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace LayeredArchitecture.Domain.Trajectory;
 
 // Stands in for scipy.optimize.linear_sum_assignment, which FUSPRO.traj_match uses to pick
@@ -12,6 +14,15 @@ public static class HungarianAlgorithm
 {
     // Returns, for each row, the column it was assigned to, or -1 when it was left
     // unassigned (which happens when there are more rows than columns).
+    [SuppressMessage(
+        "Major Code Smell",
+        "S2368:Public methods should not have multidimensional array parameters",
+        Justification = "A cost matrix is inherently rectangular, and the rule's concern — awkward "
+            + "consumption from other languages and callers having to build an unusual shape — does "
+            + "not apply to an assignment solver called only by this solution's own fusion code. "
+            + "Every alternative reads worse here: a jagged array trips the same rule, a flattened "
+            + "array plus dimensions pushes index arithmetic onto the caller, and a wrapper type "
+            + "would exist only to satisfy the analyzer.")]
     public static int[] Solve(double[,] costs)
     {
         var rowCount = costs.GetLength(0);
