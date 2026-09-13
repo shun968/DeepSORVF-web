@@ -142,8 +142,7 @@ Claude Codeなどのエージェントで本リポジトリのコード編集・
 * numpy 1.21.6
 
 ## 実行方法
-* [ckpt.t7](https://drive.google.com/file/d/1QdIP5TEDALJnnpqwjXwvL1J_GoseTK9D/view?usp=share_link) を `DeepSORVF/deep_sort/deep_sort/deep/checkpoint/` フォルダに保存する。
-* [YOLOX-final.pth](https://drive.google.com/file/d/1mhah7ZzP8oAUuSMR96Or9UvqkXe-AMuS/view?usp=share_link) を `DeepSORVF/detection_yolox/model_data/` フォルダに保存する。
+* 学習済みの重み（`ckpt.t7` / `YOLOX-final.pth`）は、このリポジトリのGitHub Release [`weights-v1`](https://github.com/shun968/DeepSORVF-web/releases/tag/weights-v1) に添付している。`bash scripts/fetch-model-weights.sh` を実行すると、`deep_sort/deep_sort/deep/checkpoint/` と `detection_yolox/model_data/` に取得してSHA-256を検証する（`gh` が必要）。元の配布元は [ckpt.t7](https://drive.google.com/file/d/1QdIP5TEDALJnnpqwjXwvL1J_GoseTK9D/view?usp=share_link) / [YOLOX-final.pth](https://drive.google.com/file/d/1mhah7ZzP8oAUuSMR96Or9UvqkXe-AMuS/view?usp=share_link)。
 * `parser.add_argument("--data_path", type=str, default = './clip-01/', help='data path')` でデータのディレクトリを設定する。
 * `main.py` を実行する。
 
