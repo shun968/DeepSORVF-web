@@ -39,11 +39,19 @@ tasks:
       # Task's built-in shell has no job control (no usable $! or kill), so the start/stop runs in bash.
       - |
         bash -euo pipefail <<'EOF'
+        port_open() { (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; }
+        if port_open; then
+          echo "Port $PORT is already in use; stop that process or pass PORT=<free port>." >&2
+          exit 1
+        fi
         dotnet run --no-build --project "$WEB_PROJ_DIR" --urls "http://localhost:$PORT" --Logging:LogLevel:Default=Warning >&2 &
         server=$!
-        trap 'kill "$server"' EXIT
-        until (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; do
-          kill -0 "$server"
+        trap 'kill "$server" 2>/dev/null || true' EXIT
+        until port_open; do
+          if ! kill -0 "$server" 2>/dev/null; then
+            echo "The Web app exited before listening on port $PORT." >&2
+            exit 1
+          fi
           sleep 0.2
         done
         request=$(jq -n \

@@ -15,7 +15,7 @@ tasks:
       - dotnet build {{.SOLUTION}}
 
   run:
-    desc: Run the pipeline locally on the bundled sample-data — starts the Web (Presentation) layer app, POSTs one run, prints the JSON response and stops the app; override AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to run other data
+    desc: Run the pipeline locally on the bundled sample-data — starts the Web (Presentation) layer app, POSTs one run, prints the JSON response and stops the app; override AIS_DIR, CAMERA_PARAMS, START_TIME, FRAME_COUNT or FRAME_INTERVAL_SECONDS to run other data
     vars:
       PORT: '{{.PORT | default "5000"}}'
       AIS_DIR: '{{.AIS_DIR | default (print .TASKFILE_DIR "/sample-data/ais")}}'
@@ -23,7 +23,6 @@ tasks:
       START_TIME: '{{.START_TIME | default "2021-01-01T12:00:00Z"}}'
       FRAME_COUNT: '{{.FRAME_COUNT | default "3"}}'
       FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS | default "60"}}'
-      RESULT_DIR: '{{.RESULT_DIR | default ""}}'
     env:
       WEB_PROJ_DIR: '{{.WEB_PROJ_DIR}}'
       PORT: '{{.PORT}}'
@@ -32,18 +31,25 @@ tasks:
       START_TIME: '{{.START_TIME}}'
       FRAME_COUNT: '{{.FRAME_COUNT}}'
       FRAME_INTERVAL_SECONDS: '{{.FRAME_INTERVAL_SECONDS}}'
-      RESULT_DIR: '{{.RESULT_DIR}}'
     cmds:
       # Build output goes to stderr so stdout carries only the JSON response (e.g. for `task run | jq`).
       - dotnet build {{.WEB_PROJ_DIR}} >&2
       # Task's built-in shell has no job control (no usable $! or kill), so the start/stop runs in bash.
       - |
         bash -euo pipefail <<'EOF'
+        port_open() { (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; }
+        if port_open; then
+          echo "Port $PORT is already in use; stop that process or pass PORT=<free port>." >&2
+          exit 1
+        fi
         dotnet run --no-build --project "$WEB_PROJ_DIR" --urls "http://localhost:$PORT" --Logging:LogLevel:Default=Warning >&2 &
         server=$!
-        trap 'kill "$server"' EXIT
-        until (exec 3<>"/dev/tcp/localhost/$PORT") 2>/dev/null; do
-          kill -0 "$server"
+        trap 'kill "$server" 2>/dev/null || true' EXIT
+        until port_open; do
+          if ! kill -0 "$server" 2>/dev/null; then
+            echo "The Web app exited before listening on port $PORT." >&2
+            exit 1
+          fi
           sleep 0.2
         done
         request=$(jq -n \
@@ -52,9 +58,7 @@ tasks:
           --arg startTime "$START_TIME" \
           --argjson frameCount "$FRAME_COUNT" \
           --argjson frameIntervalSeconds "$FRAME_INTERVAL_SECONDS" \
-          --arg resultDirectory "$RESULT_DIR" \
-          '{$aisDataDirectory, $cameraParametersPath, $startTime, $frameCount, $frameIntervalSeconds}
-            + (if $resultDirectory == "" then {} else {$resultDirectory} end)')
+          '{$aisDataDirectory, $cameraParametersPath, $startTime, $frameCount, $frameIntervalSeconds}')
         if ! response=$(curl --silent --show-error --fail-with-body \
           -X POST "http://localhost:$PORT/api/vessel-tracking/runs" \
           -H 'Content-Type: application/json' \
