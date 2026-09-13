@@ -13,6 +13,12 @@ pre-commit:
     - name: dotnet-test-layered
       glob: "architectures/layered/**/*.{cs,csproj}"
       run: dotnet test architectures/layered/LayeredArchitecture.sln
+    - name: dotnet-lint-clean
+      glob: "architectures/clean/**/*.{cs,csproj}"
+      run: dotnet format architectures/clean/CleanArchitecture.sln --verify-no-changes --severity warn
+    - name: dotnet-test-clean
+      glob: "architectures/clean/**/*.{cs,csproj}"
+      run: dotnet test architectures/clean/CleanArchitecture.sln
 
 prepare-commit-msg:
   jobs:
