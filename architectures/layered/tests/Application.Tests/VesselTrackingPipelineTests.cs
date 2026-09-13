@@ -33,7 +33,10 @@ public class VesselTrackingPipelineTests
         principalPointX: 960,
         principalPointY: 540);
 
-    private static VesselTrackingPipeline CreatePipeline(params AisRecord[] records)
+    private static VesselTrackingPipeline CreatePipeline(params AisRecord[] records) =>
+        CreatePipeline(new Mock<IMotResultWriter>(), records);
+
+    private static VesselTrackingPipeline CreatePipeline(Mock<IMotResultWriter> motResultWriter, params AisRecord[] records)
     {
         var aisRepository = new Mock<IAisRepository>();
         aisRepository
@@ -44,6 +47,7 @@ public class VesselTrackingPipelineTests
 
         return new VesselTrackingPipeline(
             cameraRepository.Object,
+            motResultWriter.Object,
             new AisService(aisRepository.Object),
             new DetectionService(),
             new TrackingService(),
@@ -80,6 +84,31 @@ public class VesselTrackingPipelineTests
 
         Assert.Equal([0, 1, 2], results.Select(frame => frame.FrameIndex));
         Assert.Equal([Start, Start + interval, Start + (interval * 2)], results.Select(frame => frame.Timestamp));
+    }
+
+    [Fact]
+    public void ProcessFrames_WithoutAResultDirectory_WritesNothing()
+    {
+        var writer = new Mock<IMotResultWriter>();
+        var pipeline = CreatePipeline(writer, VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800));
+
+        pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1));
+
+        writer.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void ProcessFrames_WithAResultDirectory_WritesAFilePerResultKind()
+    {
+        var writer = new Mock<IMotResultWriter>();
+        var pipeline = CreatePipeline(writer, VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800));
+
+        pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1), "/results");
+
+        foreach (var kind in new[] { MotResultKind.Detection, MotResultKind.Tracking, MotResultKind.Fusion })
+        {
+            writer.Verify(w => w.Write("/results", kind, It.IsAny<IReadOnlyList<MotResultRow>>()), Times.Once);
+        }
     }
 
     [Fact]

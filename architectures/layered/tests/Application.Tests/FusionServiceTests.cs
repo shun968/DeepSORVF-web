@@ -7,57 +7,111 @@ namespace LayeredArchitecture.Application.Tests;
 public class FusionServiceTests
 {
     private const double Gate = 540;
-    private static readonly DateTimeOffset Timestamp = DateTimeOffset.UnixEpoch;
+    private static readonly DateTimeOffset Start = new(2021, 1, 1, 12, 0, 0, TimeSpan.Zero);
     private readonly FusionService _service = new();
 
-    private static VisualTrack TrackAt(int id, int centreX, int centreY) =>
-        new(id, new DetectionBox(centreX - 30, centreY - 20, centreX + 30, centreY + 20, Timestamp));
+    private static VisualTrack Track(int id, double centreX, double centreY, DateTimeOffset timestamp) =>
+        new(id, new DetectionBox(centreX - 30, centreY - 20, centreX + 30, centreY + 20, timestamp));
 
-    private static ProjectedAisRecord AisAt(long mmsi, int x, int y) =>
-        new(new AisRecord(mmsi, 121.5, 29.87, 8, 270, 270, 70, Timestamp), x, y);
+    private static ProjectedAisRecord Ais(long mmsi, int x, int y, DateTimeOffset timestamp) =>
+        new(new AisRecord(mmsi, 121.5, 29.87, 8, 270, 270, 70, timestamp), x, y);
+
+    private static VisualFrame Visual(params VisualTrack[] tracks) => new(tracks, tracks);
+
+    private static AisFrame AisFrame(params ProjectedAisRecord[] records) => new(records, records);
 
     [Fact]
-    public void Fuse_BindsEachTrackToTheNearestAisPosition()
+    public void Fuse_BindsATrackToTheVesselItOverlaps()
     {
         var fused = _service.Fuse(
-            [TrackAt(1, 960, 700), TrackAt(2, 400, 650)],
-            [AisAt(431987654, 402, 648), AisAt(431234567, 958, 702)],
+            Visual(Track(1, 960, 700, Start)),
+            AisFrame(Ais(431234567, 958, 702, Start)),
             Gate,
-            Timestamp);
+            Start);
 
-        Assert.Equal(431234567, fused[0].MatchedAis!.Mmsi);
-        Assert.Equal(431987654, fused[1].MatchedAis!.Mmsi);
+        Assert.Equal(431234567, Assert.Single(fused).MatchedAis!.Mmsi);
     }
 
     [Fact]
-    public void Fuse_DoesNotGiveTheSameVesselToTwoTracks()
+    public void Fuse_TakesTheCheapestPairingOverallRatherThanEachTracksOwnNearest()
     {
+        // Track 1 is marginally nearer vessel B, but pairing it with B would strand track 2
+        // far from anything, so the cheapest overall pairing is the straight one.
         var fused = _service.Fuse(
-            [TrackAt(1, 960, 700), TrackAt(2, 964, 704)],
-            [AisAt(431234567, 958, 702)],
+            Visual(Track(1, 100, 700, Start), Track(2, 130, 700, Start)),
+            AisFrame(Ais(431000001, 105, 700, Start), Ais(431000002, 128, 700, Start)),
             Gate,
-            Timestamp);
+            Start);
 
-        Assert.Equal(431234567, fused[0].MatchedAis!.Mmsi);
-        Assert.Null(fused[1].MatchedAis);
+        Assert.Equal(431000001, fused[0].MatchedAis!.Mmsi);
+        Assert.Equal(431000002, fused[1].MatchedAis!.Mmsi);
     }
 
     [Fact]
     public void Fuse_LeavesTracksBeyondTheGateUnmatched()
     {
         var fused = _service.Fuse(
-            [TrackAt(1, 100, 100)],
-            [AisAt(431234567, 1800, 1000)],
+            Visual(Track(1, 100, 100, Start)),
+            AisFrame(Ais(431234567, 1800, 1000, Start)),
             Gate,
-            Timestamp);
+            Start);
 
         Assert.Null(Assert.Single(fused).MatchedAis);
     }
 
     [Fact]
-    public void Fuse_WithNoAisRecords_LeavesEveryTrackUnmatched()
+    public void Fuse_RejectsAVesselTravellingTheOppositeWay()
     {
-        var fused = _service.Fuse([TrackAt(1, 960, 700)], [], Gate, Timestamp);
+        var track = new VisualFrame(
+            [Track(1, 200, 700, Start.AddSeconds(1))],
+            [Track(1, 100, 700, Start), Track(1, 200, 700, Start.AddSeconds(1))]);
+        // Same place, but tracking backwards along the track's path.
+        var vessel = new AisFrame(
+            [Ais(431234567, 205, 700, Start.AddSeconds(1))],
+            [Ais(431234567, 305, 700, Start), Ais(431234567, 205, 700, Start.AddSeconds(1))]);
+
+        var fused = _service.Fuse(track, vessel, Gate, Start.AddSeconds(1));
+
+        Assert.Null(Assert.Single(fused).MatchedAis);
+    }
+
+    [Fact]
+    public void Fuse_KeepsABoundPairWhenANearerVesselAppears()
+    {
+        // Four matching frames is enough to bind track 1 to this vessel.
+        for (var second = 0; second < 4; second++)
+        {
+            var at = Start.AddSeconds(second);
+            _service.Fuse(Visual(Track(1, 960, 700, at)), AisFrame(Ais(431234567, 958, 702, at)), Gate, at);
+        }
+
+        var later = Start.AddSeconds(4);
+        var fused = _service.Fuse(
+            Visual(Track(1, 960, 700, later)),
+            AisFrame(Ais(431234567, 958, 702, later), Ais(431999999, 960, 700, later)),
+            Gate,
+            later);
+
+        Assert.Equal(431234567, Assert.Single(fused).MatchedAis!.Mmsi);
+    }
+
+    [Fact]
+    public void Fuse_ReportsTracksWithNoVesselOfTheirOwn()
+    {
+        var fused = _service.Fuse(
+            Visual(Track(1, 960, 700, Start), Track(2, 200, 700, Start)),
+            AisFrame(Ais(431234567, 958, 702, Start)),
+            Gate,
+            Start);
+
+        Assert.Equal(431234567, fused[0].MatchedAis!.Mmsi);
+        Assert.Null(fused[1].MatchedAis);
+    }
+
+    [Fact]
+    public void Fuse_WithNoVessels_LeavesEveryTrackUnmatched()
+    {
+        var fused = _service.Fuse(Visual(Track(1, 960, 700, Start)), AisFrame(), Gate, Start);
 
         Assert.Null(Assert.Single(fused).MatchedAis);
     }
@@ -65,18 +119,18 @@ public class FusionServiceTests
     [Fact]
     public void Fuse_WithNoTracks_ReturnsEmpty()
     {
-        Assert.Empty(_service.Fuse([], [AisAt(431234567, 958, 702)], Gate, Timestamp));
+        Assert.Empty(_service.Fuse(Visual(), AisFrame(Ais(431234567, 958, 702, Start)), Gate, Start));
     }
 
     [Fact]
     public void Fuse_KeepsTheTrackIdAndBox()
     {
-        var track = TrackAt(7, 960, 700);
+        var track = Track(7, 960, 700, Start);
 
-        var fused = Assert.Single(_service.Fuse([track], [], Gate, Timestamp));
+        var fused = Assert.Single(_service.Fuse(Visual(track), AisFrame(), Gate, Start));
 
         Assert.Equal(7, fused.TrackId);
         Assert.Same(track.Box, fused.Box);
-        Assert.Equal(Timestamp, fused.Timestamp);
+        Assert.Equal(Start, fused.Timestamp);
     }
 }

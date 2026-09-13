@@ -11,4 +11,8 @@ public sealed record VesselTrackingRunRequest
     public required DateTimeOffset StartTime { get; init; }
     public required int FrameCount { get; init; }
     public required int FrameIntervalSeconds { get; init; }
+
+    // Optional: when set, the run also writes the MOT-format detection/tracking/fusion
+    // files the Python original produces into this directory.
+    public string? ResultDirectory { get; init; }
 }
