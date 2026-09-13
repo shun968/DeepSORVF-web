@@ -4,6 +4,7 @@ vars:
   SOLUTION: LayeredArchitecture.sln
   DOMAIN_PROJ: src/Domain/LayeredArchitecture.Domain.csproj
   DOMAIN_TEST_PROJ: tests/Domain.Tests/LayeredArchitecture.Domain.Tests.csproj
+  WEB_PROJ_DIR: src/Web
   COVERAGE_DIR: TestResults
 
 tasks:
@@ -16,6 +17,11 @@ tasks:
     desc: Compile the Domain layer only
     cmds:
       - dotnet build {{.DOMAIN_PROJ}}
+
+  run:
+    desc: Run the Web (Presentation) layer app
+    cmds:
+      - dotnet run --project {{.WEB_PROJ_DIR}}
 
   test:
     desc: Run tests for all layers
