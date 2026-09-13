@@ -17,9 +17,16 @@ public sealed class CameraGeometry
         _parameters = parameters;
     }
 
+    public double DistanceMeters(double longitudeDegrees, double latitudeDegrees) =>
+        GeoMath.DistanceMeters(
+            _parameters.LatitudeDegrees,
+            _parameters.LongitudeDegrees,
+            latitudeDegrees,
+            longitudeDegrees);
+
     public AisVisibility Classify(double longitudeDegrees, double latitudeDegrees)
     {
-        var distanceMeters = DistanceToCamera(longitudeDegrees, latitudeDegrees);
+        var distanceMeters = DistanceMeters(longitudeDegrees, latitudeDegrees);
         var depressionDegrees = ToDegrees(Math.Atan(distanceMeters / _parameters.HeightMeters));
         if (90 + _parameters.TiltDegrees - (_parameters.VerticalFovDegrees / 2) >= depressionDegrees)
         {
@@ -45,7 +52,7 @@ public sealed class CameraGeometry
 
     public (int X, int Y) Project(double longitudeDegrees, double latitudeDegrees)
     {
-        var distanceMeters = DistanceToCamera(longitudeDegrees, latitudeDegrees);
+        var distanceMeters = DistanceMeters(longitudeDegrees, latitudeDegrees);
         var bearingDegrees = GeoMath.InitialBearingDegrees(
             _parameters.LatitudeDegrees,
             _parameters.LongitudeDegrees,
@@ -76,13 +83,6 @@ public sealed class CameraGeometry
             (int)((_parameters.FocalLengthX * worldX / cameraZ) + _parameters.PrincipalPointX),
             (int)((_parameters.FocalLengthY * cameraY / cameraZ) + _parameters.PrincipalPointY));
     }
-
-    private double DistanceToCamera(double longitudeDegrees, double latitudeDegrees) =>
-        GeoMath.DistanceMeters(
-            _parameters.LatitudeDegrees,
-            _parameters.LongitudeDegrees,
-            latitudeDegrees,
-            longitudeDegrees);
 
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 

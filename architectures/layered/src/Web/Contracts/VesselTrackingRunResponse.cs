@@ -5,11 +5,12 @@ public sealed record VesselTrackingRunResponse(IReadOnlyList<FrameResultDto> Fra
 public sealed record FrameResultDto(
     int FrameIndex,
     DateTimeOffset Timestamp,
-    IReadOnlyList<AisRecordDto> AisRecords,
+    IReadOnlyList<VisibleAisRecordDto> AisRecords,
     IReadOnlyList<VisualTrackDto> Tracks,
     IReadOnlyList<FusedTrackDto> FusedTracks);
 
-public sealed record AisRecordDto(
+// An AIS record the camera can see, with the pixel coordinates its position projects to.
+public sealed record VisibleAisRecordDto(
     long Mmsi,
     double Longitude,
     double Latitude,
@@ -17,7 +18,9 @@ public sealed record AisRecordDto(
     double CourseDegrees,
     double HeadingDegrees,
     int ShipType,
-    DateTimeOffset Timestamp);
+    DateTimeOffset Timestamp,
+    int X,
+    int Y);
 
 public sealed record VisualTrackDto(int TrackId, double X1, double Y1, double X2, double Y2);
 

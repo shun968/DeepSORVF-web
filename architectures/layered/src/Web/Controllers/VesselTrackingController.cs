@@ -29,13 +29,24 @@ public sealed class VesselTrackingController : ControllerBase
             return BadRequest($"AIS data directory not found: {request.AisDataDirectory}");
         }
 
+        if (!System.IO.File.Exists(request.CameraParametersPath))
+        {
+            return BadRequest($"Camera parameters file not found: {request.CameraParametersPath}");
+        }
+
         if (request.FrameCount <= 0)
         {
             return BadRequest("FrameCount must be greater than zero.");
         }
 
+        if (request.FrameIntervalSeconds <= 0)
+        {
+            return BadRequest("FrameIntervalSeconds must be greater than zero.");
+        }
+
         var frames = _pipeline.ProcessFrames(
             request.AisDataDirectory,
+            request.CameraParametersPath,
             request.StartTime,
             request.FrameCount,
             TimeSpan.FromSeconds(request.FrameIntervalSeconds));

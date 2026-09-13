@@ -16,15 +16,17 @@ public static class FrameResultMapper
         frame.VisualTracks.Select(ToDto).ToList(),
         frame.FusedTracks.Select(ToDto).ToList());
 
-    private static AisRecordDto ToDto(AisRecord record) => new(
-        record.Mmsi,
-        record.Longitude,
-        record.Latitude,
-        record.SpeedKnots,
-        record.CourseDegrees,
-        record.HeadingDegrees,
-        record.ShipType,
-        record.Timestamp);
+    private static VisibleAisRecordDto ToDto(ProjectedAisRecord projected) => new(
+        projected.Record.Mmsi,
+        projected.Record.Longitude,
+        projected.Record.Latitude,
+        projected.Record.SpeedKnots,
+        projected.Record.CourseDegrees,
+        projected.Record.HeadingDegrees,
+        projected.Record.ShipType,
+        projected.Record.Timestamp,
+        projected.X,
+        projected.Y);
 
     private static VisualTrackDto ToDto(VisualTrack track) =>
         new(track.TrackId, track.Box.X1, track.Box.Y1, track.Box.X2, track.Box.Y2);
