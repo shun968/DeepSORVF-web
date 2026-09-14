@@ -42,7 +42,7 @@ public class ZeroedRangesStreamTests
         var buffer = new byte[20];
 
         stream.Seek(45, SeekOrigin.Begin);
-        var read = await stream.ReadAsync(buffer, 0, buffer.Length);
+        var read = await stream.ReadAsync(buffer.AsMemory());
 
         Assert.Equal(20, read);
         Assert.Equal(Expected().Skip(45).Take(20), buffer);
