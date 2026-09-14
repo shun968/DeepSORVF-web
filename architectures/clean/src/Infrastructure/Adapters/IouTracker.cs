@@ -1,43 +1,26 @@
-using LayeredArchitecture.Domain.Entities;
+using CleanArchitecture.Domain.Entities;
+using CleanArchitecture.Domain.Ports;
 
-namespace LayeredArchitecture.Application.Services;
+namespace CleanArchitecture.Infrastructure.Adapters;
 
-// Stands in for DeepSORT (utils/VIS_utils.py's VISPRO.track) with the part of its job the fusion
-// step depends on: keeping a vessel's track ID from frame to frame. Each detection goes to the
-// track whose last box it overlaps most (intersection over union), best overlaps first. A
-// detection that overlaps no free track enough starts a new one, and a track that finds no
-// detection is dropped once it has gone unmatched for more than MaxMissedFrames frames in a row.
+// Keeps a vessel's track ID from frame to frame by box overlap, the part of DeepSORT's job the
+// fusion step depends on. Each detection goes to the track whose last box it overlaps most
+// (intersection over union), best overlaps first. A detection that overlaps no free track
+// enough starts a new one, and a track that finds no detection is dropped once it has gone
+// unmatched for more than MaxMissedFrames frames in a row.
 //
 // There is no motion model, no appearance re-identification (DeepSORT's ckpt.t7), and no
 // counterpart to the paper's anti-occlusion logic, so a vessel hidden for longer than that
-// comes back under a new ID.
-//
-// It also keeps the trailing window of past positions (VISPRO's Vis_tra), because trajectory
-// matching compares paths rather than single points. Registered per request, like AISPRO.
-public sealed class TrackingService
+// comes back under a new ID. Registered per request, since it remembers one run's tracks.
+public sealed class IouTracker : ITracker
 {
     private const double MinOverlap = 0.3;
     private const int MaxMissedFrames = 3;
 
-    // Matched to the AIS side's window so both trajectories cover the same span.
-    private static readonly TimeSpan HistoryWindow = TimeSpan.FromMinutes(2);
-
-    private readonly List<VisualTrack> _history = [];
     private readonly List<TrackState> _tracks = [];
     private int _nextId = 1;
 
-    public VisualFrame Track(IReadOnlyList<DetectionBox> detections, DateTimeOffset timestamp)
-    {
-        var ids = AssignTrackIds(detections);
-        var current = detections.Select((box, index) => new VisualTrack(ids[index], box)).ToList();
-
-        _history.AddRange(current);
-        _history.RemoveAll(track => track.Box.Timestamp < timestamp - HistoryWindow);
-
-        return new VisualFrame(current, _history.ToList());
-    }
-
-    private int[] AssignTrackIds(IReadOnlyList<DetectionBox> detections)
+    public IReadOnlyList<Track> Track(IReadOnlyList<Detection> detections, DateTimeOffset timestamp)
     {
         var ids = new int[detections.Count];
         var matched = new HashSet<TrackState>();
@@ -81,10 +64,10 @@ public sealed class TrackingService
             }
         }
 
-        return ids;
+        return detections.Select((detection, index) => new Track(ids[index], detection)).ToList();
     }
 
-    private static double Overlap(DetectionBox a, DetectionBox b)
+    private static double Overlap(Detection a, Detection b)
     {
         var width = Math.Min(a.X2, b.X2) - Math.Max(a.X1, b.X1);
         var height = Math.Min(a.Y2, b.Y2) - Math.Max(a.Y1, b.Y1);
@@ -97,10 +80,10 @@ public sealed class TrackingService
         return intersection / ((a.Width * a.Height) + (b.Width * b.Height) - intersection);
     }
 
-    private sealed class TrackState(int id, DetectionBox last)
+    private sealed class TrackState(int id, Detection last)
     {
         public int Id { get; } = id;
-        public DetectionBox Last { get; set; } = last;
+        public Detection Last { get; set; } = last;
         public int Missed { get; set; }
     }
 }

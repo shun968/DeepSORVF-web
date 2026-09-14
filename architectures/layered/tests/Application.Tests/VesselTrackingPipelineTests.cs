@@ -36,8 +36,22 @@ public class VesselTrackingPipelineTests
     private static VesselTrackingPipeline CreatePipeline(params AisRecord[] records) =>
         CreatePipeline(new Mock<IMotResultWriter>(), records);
 
-    private static VesselTrackingPipeline CreatePipeline(Mock<IMotResultWriter> motResultWriter, params AisRecord[] records)
+    private static VesselTrackingPipeline CreatePipeline(Mock<IMotResultWriter> motResultWriter, params AisRecord[] records) =>
+        CreatePipeline(motResultWriter, new Mock<IVideoFrameRepository>(), [], records);
+
+    // detections: the boxes the detector reports on every picture the video yields.
+    private static VesselTrackingPipeline CreatePipeline(
+        Mock<IMotResultWriter> motResultWriter,
+        Mock<IVideoFrameRepository> videoFrameRepository,
+        IReadOnlyList<(double CentreX, double CentreY)> detections,
+        params AisRecord[] records)
     {
+        var vesselDetector = new Mock<IVesselDetector>();
+        vesselDetector
+            .Setup(d => d.Detect(It.IsAny<FrameImage>(), It.IsAny<DateTimeOffset>()))
+            .Returns<FrameImage, DateTimeOffset>((_, at) => detections
+                .Select(centre => new DetectionBox(centre.CentreX - 30, centre.CentreY - 20, centre.CentreX + 30, centre.CentreY + 20, at))
+                .ToList());
         var aisRepository = new Mock<IAisRepository>();
         aisRepository
             .Setup(r => r.GetRecordsAt(AisDirectory, It.IsAny<DateTimeOffset>()))
@@ -49,7 +63,7 @@ public class VesselTrackingPipelineTests
             cameraRepository.Object,
             motResultWriter.Object,
             new AisService(aisRepository.Object),
-            new DetectionService(),
+            new DetectionService(videoFrameRepository.Object, vesselDetector.Object),
             new TrackingService(),
             new FusionService());
     }
@@ -61,17 +75,64 @@ public class VesselTrackingPipelineTests
     }
 
     [Fact]
-    public void ProcessFrames_BindsAVisibleVesselToItsTrack()
+    public void ProcessFrames_BindsADetectedVesselToItsAis()
     {
-        var pipeline = CreatePipeline(VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800));
+        // The vessel 800m due east projects to about (960, 709); the detector sees it there, and
+        // a second vessel with no AIS far off to the left.
+        var videoFrameRepository = PicturesEverywhere();
+        var pipeline = CreatePipeline(
+            new Mock<IMotResultWriter>(),
+            videoFrameRepository,
+            [(960, 705), (200, 700)],
+            VesselAt(431234567, bearingDegrees: 90, distanceMeters: 800));
+
+        var run = pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1), videoPath: VideoPath);
+
+        var frame = Assert.Single(run.Frames);
+        Assert.Equal(431234567, Assert.Single(frame.AisRecords).Record.Mmsi);
+        Assert.Equal([1, 2], frame.VisualTracks.Select(track => track.TrackId));
+        Assert.Equal(431234567, frame.FusedTracks[0].MatchedAis!.Mmsi);
+        Assert.Null(frame.FusedTracks[1].MatchedAis);
+    }
+
+    [Fact]
+    public void ProcessFrames_WithoutAVideo_DetectsNothing()
+    {
+        var videoFrameRepository = PicturesEverywhere();
+        var pipeline = CreatePipeline(new Mock<IMotResultWriter>(), videoFrameRepository, [(960, 705)], VesselAt(431234567, 90, 800));
 
         var frame = Assert.Single(pipeline.ProcessFrames(AisDirectory, CameraPath, Start, 1, TimeSpan.FromSeconds(1)).Frames);
 
-        Assert.Equal(431234567, Assert.Single(frame.AisRecords).Record.Mmsi);
-        // One track for the vessel and one for the mock's vessel without AIS.
-        Assert.Equal(2, frame.VisualTracks.Count);
-        Assert.Equal(431234567, frame.FusedTracks[0].MatchedAis!.Mmsi);
-        Assert.Null(frame.FusedTracks[1].MatchedAis);
+        Assert.Empty(frame.VisualTracks);
+        Assert.Empty(frame.FusedTracks);
+        videoFrameRepository.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public void ProcessFrames_TakesEachFramesPictureFromItsMomentInTheVideo()
+    {
+        var videoFrameRepository = PicturesEverywhere();
+        var pipeline = CreatePipeline(new Mock<IMotResultWriter>(), videoFrameRepository, []);
+
+        pipeline.ProcessFrames(
+            AisDirectory, CameraPath, Start, 3, TimeSpan.FromSeconds(10), videoPath: VideoPath, videoStartTime: Start.AddSeconds(-5));
+
+        // The video started five seconds before the run, so each frame is five seconds further in.
+        foreach (var seconds in new[] { 5, 15, 25 })
+        {
+            videoFrameRepository.Verify(r => r.ReadAt(VideoPath, TimeSpan.FromSeconds(seconds)));
+        }
+    }
+
+    private const string VideoPath = "/video.mp4";
+
+    private static Mock<IVideoFrameRepository> PicturesEverywhere()
+    {
+        var videoFrameRepository = new Mock<IVideoFrameRepository>();
+        videoFrameRepository
+            .Setup(r => r.ReadAt(It.IsAny<string>(), It.IsAny<TimeSpan>()))
+            .Returns(new FrameImage(2, 2, new byte[12]));
+        return videoFrameRepository;
     }
 
     [Fact]

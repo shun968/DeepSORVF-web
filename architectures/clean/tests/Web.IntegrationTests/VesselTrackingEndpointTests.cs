@@ -2,10 +2,14 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using CleanArchitecture.Domain.Entities;
+using CleanArchitecture.Domain.Ports;
 using CleanArchitecture.Web.Contracts;
 using CleanArchitecture.Web.Video;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace CleanArchitecture.Web.IntegrationTests;
@@ -38,7 +42,7 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
     };
 
     [Fact]
-    public async Task CreateRun_ProjectsAisFromDiskAndRunsEveryStage()
+    public async Task CreateRun_WithoutAVideo_ProjectsAisFromDiskButDetectsNothing()
     {
         // 800m due east of the camera, closing on it at 8kt.
         WriteAisCsv(StartTime, ["431234567,121.508287,29.870000,8.0,270,270,70,1609502400000"]);
@@ -54,8 +58,8 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal(431234567, vessel.Mmsi);
         Assert.InRange(vessel.X, 958, 962);
         Assert.True(vessel.Y > 540, $"a vessel below the horizon should project below the principal point, got {vessel.Y}");
-        Assert.NotEmpty(frame.Tracks);
-        Assert.Equal(frame.Tracks.Count, frame.Fusions.Count);
+        Assert.Empty(frame.Tracks);
+        Assert.Empty(frame.Fusions);
     }
 
     [Fact]
@@ -223,6 +227,83 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
         var response = await client.GetAsync("/api/vessel-tracking/video");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateRun_WithAVideo_DetectsOnItsPicturesAndBindsTheVessel()
+    {
+        WriteAisCsv(StartTime, ["431234567,121.508287,29.870000,8.0,270,270,70,1609502400000"]);
+        var videoFrameReader = new FakeVideoFrameReader();
+        var client = ClientWithVideo(videoFrameReader, new FakeDetector(960, 705));
+
+        var response = await client.PostAsJsonAsync(
+            "/api/vessel-tracking/runs", Request() with { VideoStartTime = StartTime.AddSeconds(-11) });
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<VesselTrackingRunResponse>();
+        var frame = Assert.Single(body!.Frames);
+        Assert.Equal(431234567, Assert.Single(frame.Fusions).Mmsi);
+        // The video started 11 seconds before the run, so the first frame is 11 seconds in.
+        Assert.Equal([TimeSpan.FromSeconds(11)], videoFrameReader.Positions);
+    }
+
+    [Fact]
+    public async Task CreateRun_WithAVideoButNoExportedModel_ReturnsBadRequestSayingHowToExportIt()
+    {
+        var client = ClientWithVideo(
+            new FakeVideoFrameReader(),
+            detector: null,
+            new() { ["Detection:ModelPath"] = Path.Combine(_directory, "missing.onnx") });
+
+        var response = await client.PostAsJsonAsync("/api/vessel-tracking/runs", Request());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("export-yolox-onnx.py", await response.Content.ReadAsStringAsync());
+    }
+
+    // A client whose configured video exists, with the frame reader (and optionally the
+    // detector) replaced so no real decoding or model is needed.
+    private HttpClient ClientWithVideo(
+        IVideoFrameReader videoFrameReader,
+        IDetector? detector,
+        Dictionary<string, string?>? settings = null)
+    {
+        var videoPath = Path.Combine(_directory, "clip.mp4");
+        File.WriteAllBytes(videoPath, [0]);
+        var configuration = new Dictionary<string, string?>(settings ?? []) { ["RunDefaults:VideoPath"] = videoPath };
+
+        return _factory
+            .WithWebHostBuilder(builder =>
+            {
+                builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(configuration));
+                builder.ConfigureTestServices(services =>
+                {
+                    services.AddSingleton(videoFrameReader);
+                    if (detector is not null)
+                    {
+                        services.AddSingleton(detector);
+                    }
+                });
+            })
+            .CreateClient();
+    }
+
+    private sealed class FakeVideoFrameReader : IVideoFrameReader
+    {
+        public List<TimeSpan> Positions { get; } = [];
+
+        public FrameImage? ReadAt(string videoPath, TimeSpan position)
+        {
+            Positions.Add(position);
+            return new FrameImage(2, 2, new byte[2 * 2 * 3]);
+        }
+    }
+
+    // Reports one vessel-sized box at a fixed spot on every frame that has a picture.
+    private sealed class FakeDetector(double centreX, double centreY) : IDetector
+    {
+        public IReadOnlyList<Detection> Detect(VideoFrame frame) =>
+            frame.Image is null ? [] : [new Detection(centreX - 30, centreY - 20, centreX + 30, centreY + 20, frame.Timestamp)];
     }
 
     private HttpClient ClientWithSettings(Dictionary<string, string?> settings) =>

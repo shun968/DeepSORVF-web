@@ -1,40 +1,45 @@
 using LayeredArchitecture.Application.Services;
 using LayeredArchitecture.Domain.Entities;
+using LayeredArchitecture.Domain.Repositories;
+using Moq;
 using Xunit;
 
 namespace LayeredArchitecture.Application.Tests;
 
 public class DetectionServiceTests
 {
-    private static readonly DateTimeOffset Timestamp = DateTimeOffset.UnixEpoch;
-    private readonly DetectionService _service = new();
+    private static readonly DateTimeOffset Timestamp = new(2022, 6, 4, 4, 5, 23, TimeSpan.Zero);
+    private static readonly TimeSpan Position = TimeSpan.FromSeconds(11);
+    private readonly Mock<IVideoFrameRepository> _videoFrameRepository = new();
+    private readonly Mock<IVesselDetector> _vesselDetector = new();
 
-    private static ProjectedAisRecord Projected(int x, int y) =>
-        new(new AisRecord(431234567, 121.5, 29.87, 8, 270, 270, 70, Timestamp), x, y);
+    private DetectionService Service() => new(_videoFrameRepository.Object, _vesselDetector.Object);
 
     [Fact]
-    public void Detect_ReturnsOneBoxPerVisibleVesselPlusOneWithoutAis()
+    public void Detect_AsksTheDetectorAboutThePictureAtThatMomentOfTheVideo()
     {
-        var boxes = _service.Detect([Projected(960, 700), Projected(400, 650)], Timestamp);
+        var image = new FrameImage(2, 2, new byte[12]);
+        var box = new DetectionBox(10, 20, 30, 40, Timestamp);
+        _videoFrameRepository.Setup(r => r.ReadAt("/video.mp4", Position)).Returns(image);
+        _vesselDetector.Setup(d => d.Detect(image, Timestamp)).Returns([box]);
 
-        Assert.Equal(3, boxes.Count);
+        Assert.Same(box, Assert.Single(Service().Detect("/video.mp4", Position, Timestamp)));
     }
 
     [Fact]
-    public void Detect_PlacesBoxesOnTheProjectedAisPositions()
+    public void Detect_WithoutAVideo_DetectsNothing()
     {
-        var boxes = _service.Detect([Projected(960, 700)], Timestamp);
-
-        Assert.Equal(966, boxes[0].CenterX);
-        Assert.Equal(704, boxes[0].CenterY);
-        Assert.Equal(Timestamp, boxes[0].Timestamp);
+        Assert.Empty(Service().Detect(null, Position, Timestamp));
+        _videoFrameRepository.VerifyNoOtherCalls();
+        _vesselDetector.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public void Detect_WithNoVisibleVessels_StillReportsTheVesselWithoutAis()
+    public void Detect_AtAMomentTheVideoDoesNotCover_DetectsNothing()
     {
-        var boxes = _service.Detect([], Timestamp);
+        _videoFrameRepository.Setup(r => r.ReadAt("/video.mp4", Position)).Returns((FrameImage?)null);
 
-        Assert.Single(boxes);
+        Assert.Empty(Service().Detect("/video.mp4", Position, Timestamp));
+        _vesselDetector.VerifyNoOtherCalls();
     }
 }

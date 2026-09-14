@@ -45,14 +45,24 @@ public sealed class VesselTrackingController : ControllerBase
             return BadRequest("FrameIntervalSeconds must be greater than zero.");
         }
 
-        var response = _useCase.Execute(new ProcessVesselTrackingRunRequest(
-            request.AisDataDirectory,
-            request.CameraParametersPath,
-            request.StartTime,
-            request.FrameCount,
-            TimeSpan.FromSeconds(request.FrameIntervalSeconds)));
+        try
+        {
+            var response = _useCase.Execute(new ProcessVesselTrackingRunRequest(
+                request.AisDataDirectory,
+                request.CameraParametersPath,
+                request.StartTime,
+                request.FrameCount,
+                TimeSpan.FromSeconds(request.FrameIntervalSeconds),
+                string.IsNullOrEmpty(_runDefaults.VideoPath) ? null : _runDefaults.VideoPath,
+                request.VideoStartTime));
 
-        return Ok(VesselTrackingMapper.ToResponse(response));
+            return Ok(VesselTrackingMapper.ToResponse(response));
+        }
+        catch (FileNotFoundException error)
+        {
+            // The configured video could not be opened, or the YOLOX model is not exported yet.
+            return BadRequest(error.Message);
+        }
     }
 
     // What the viewer page (wwwroot/index.html) pre-fills its form with.

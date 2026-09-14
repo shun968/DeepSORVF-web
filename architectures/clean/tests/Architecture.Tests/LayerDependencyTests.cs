@@ -66,6 +66,7 @@ public sealed class LayerDependencyTests
     [Theory]
     [InlineData(typeof(IAisReader))]
     [InlineData(typeof(ICameraParametersReader))]
+    [InlineData(typeof(IVideoFrameReader))]
     [InlineData(typeof(IDetector))]
     [InlineData(typeof(ITracker))]
     [InlineData(typeof(IFusionEngine))]

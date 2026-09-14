@@ -32,6 +32,7 @@ obj/
 # Model weights — attached to the weights-v1 GitHub Release, fetched by scripts/fetch-model-weights.sh
 /deep_sort/deep_sort/deep/checkpoint/ckpt.t7
 /detection_yolox/model_data/YOLOX-final.pth
+/detection_yolox/model_data/YOLOX-final.onnx
 
 # Test data and run outputs (clip-01's video/AIS, main.py results) — large, and not ours to redistribute
 /tmp/
