@@ -16,4 +16,7 @@ public sealed class RunDefaults
     public int? FrameCount { get; set; }
     public int? FrameIntervalSeconds { get; set; }
     public string? VideoPath { get; set; }
+
+    // When the video starts, if not at StartTime. Text for the same reason as StartTime.
+    public string? VideoStartTime { get; set; }
 }

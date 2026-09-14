@@ -104,10 +104,11 @@ Web APIを起動し、`http://localhost:5000/` で可視化画面を開けるよ
 パイプラインを実行し、各フレームのAIS投影位置（と軌跡）・検出/追跡のbbox・融合結果（紐づいたMMSI）を
 描画する。フォームの既定値は、リポジトリ直下に `clip-01/`（FVesselのテストデータ）があればそのAIS・
 カメラパラメータ・動画（開始時刻と長さは動画のファイル名から求める）、無ければ同梱の合成データ
-`sample-data/`（動画なし）で、変数で上書きできる（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR` / `VIDEO_PATH`）。
+`sample-data/`（動画なし）で、変数で上書きできる（`AIS_DIR` / `CAMERA_PARAMS` / `START_TIME` / `FRAME_COUNT` / `FRAME_INTERVAL_SECONDS` / `RESULT_DIR` / `VIDEO_PATH` / `VIDEO_START_TIME`）。
+結果ファイル（MOT形式）の出力先は、既定でリポジトリ直下の `result/layered/`。
 
-`VIDEO_PATH` に動画を指定すると、その上に重ねて描画する（動画の開始時刻は画面で指定でき、空なら
-開始時刻と同じとみなす）。別の場所のデータを指定する例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
+`VIDEO_PATH` に動画を指定すると、その上に重ねて描画する（動画の開始時刻は `VIDEO_START_TIME` か
+画面で指定でき、既定は開始時刻と同じ）。別の場所のデータを指定する例（ファイル名の時刻は現地時刻なので `+08:00` を付ける）:
 
 ```sh
 task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_para.txt \

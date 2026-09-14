@@ -15,7 +15,7 @@ tasks:
       - dotnet build {{.SOLUTION}}
 
   run:
-    desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video when there is one; its form opens on the FVessel clip in the repository root's clip-01/ (with its video) when that is present, otherwise on the bundled synthetic sample-data (no video); override AIS_DIR, CAMERA_PARAMS, VIDEO_PATH, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to open other data
+    desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video when there is one; its form opens on the FVessel clip in the repository root's clip-01/ (with its video) when that is present, otherwise on the bundled synthetic sample-data (no video); override AIS_DIR, CAMERA_PARAMS, VIDEO_PATH, START_TIME, VIDEO_START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to open other data
     vars:
       PORT: '{{.PORT | default "5000"}}'
       # The YOLOX detector, exported to ONNX from detection_yolox/model_data/YOLOX-final.pth.
@@ -44,15 +44,19 @@ tasks:
       CAMERA_PARAMS: '{{if .CAMERA_PARAMS}}{{.CAMERA_PARAMS}}{{else if .USE_CLIP}}{{.CLIP_CAMERA}}{{else}}{{.TASKFILE_DIR}}/sample-data/camera.txt{{end}}'
       VIDEO_PATH: '{{if .VIDEO_PATH}}{{.VIDEO_PATH}}{{else if .USE_CLIP}}{{.CLIP_VIDEO}}{{end}}'
       START_TIME: '{{if .START_TIME}}{{.START_TIME}}{{else if .USE_CLIP}}{{.CLIP_START}}{{else}}2021-01-01T12:00:00Z{{end}}'
+      # When the video starts; the same moment as the run unless given.
+      VIDEO_START_TIME: '{{.VIDEO_START_TIME | default .START_TIME}}'
       FRAME_COUNT: '{{if .FRAME_COUNT}}{{.FRAME_COUNT}}{{else if and .USE_CLIP .CLIP_SECONDS}}{{.CLIP_SECONDS}}{{else if .USE_CLIP}}100{{else}}3{{end}}'
       FRAME_INTERVAL_SECONDS: '{{if .FRAME_INTERVAL_SECONDS}}{{.FRAME_INTERVAL_SECONDS}}{{else if .USE_CLIP}}1{{else}}60{{end}}'
-      RESULT_DIR: '{{.RESULT_DIR | default ""}}'
+      # Where the MOT-format result files go, as main.py's --result_path defaults to ./result/.
+      RESULT_DIR: '{{.RESULT_DIR | default (print (dir (dir .TASKFILE_DIR)) "/result/layered")}}'
     env:
       Detection__ModelPath: '{{.MODEL_PATH}}'
       RunDefaults__AisDataDirectory: '{{.AIS_DIR}}'
       RunDefaults__CameraParametersPath: '{{.CAMERA_PARAMS}}'
       RunDefaults__VideoPath: '{{.VIDEO_PATH}}'
       RunDefaults__StartTime: '{{.START_TIME}}'
+      RunDefaults__VideoStartTime: '{{.VIDEO_START_TIME}}'
       RunDefaults__FrameCount: '{{.FRAME_COUNT}}'
       RunDefaults__FrameIntervalSeconds: '{{.FRAME_INTERVAL_SECONDS}}'
       RunDefaults__ResultDirectory: '{{.RESULT_DIR}}'
