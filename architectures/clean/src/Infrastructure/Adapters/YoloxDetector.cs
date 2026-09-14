@@ -47,9 +47,9 @@ public sealed class YoloxDetector : IDetector, IDisposable
 
         var session = _session.Value;
         var letterbox = Letterbox.Fit(frame.Image.Width, frame.Image.Height);
-        var input = NamedOnnxValue.CreateFromTensor(session.InputMetadata.Keys.First(), ToInput(frame.Image, letterbox));
+        var input = NamedOnnxValue.CreateFromTensor(session.InputNames[0], ToInput(frame.Image, letterbox));
         using var outputs = session.Run([input]);
-        return ToDetections(outputs.First().AsTensor<float>(), letterbox, frame.Image, frame.Timestamp);
+        return ToDetections(outputs[0].AsTensor<float>(), letterbox, frame.Image, frame.Timestamp);
     }
 
     public void Dispose()

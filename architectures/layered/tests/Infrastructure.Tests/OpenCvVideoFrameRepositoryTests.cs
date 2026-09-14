@@ -5,7 +5,7 @@ using Xunit;
 
 namespace LayeredArchitecture.Infrastructure.Tests;
 
-public class OpenCvVideoFrameRepositoryTests : IDisposable
+public sealed class OpenCvVideoFrameRepositoryTests : IDisposable
 {
     private const int FramesPerSecond = 10;
     private const int FrameCount = 50;
@@ -38,8 +38,9 @@ public class OpenCvVideoFrameRepositoryTests : IDisposable
     public void ReadAt_ReturnsTheFrameAtEachPositionReadingForward()
     {
         using var reader = new OpenCvVideoFrameRepository();
+        double[] positions = [0.0, 1.0, 2.5];
 
-        var frames = new[] { 0.0, 1.0, 2.5 }
+        var frames = positions
             .Select(seconds => reader.ReadAt(_videoPath, TimeSpan.FromSeconds(seconds)))
             .ToList();
 

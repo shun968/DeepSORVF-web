@@ -7,7 +7,9 @@ ImageNet mean and deviation) and returns "predictions" [1, 8400, 5 + classes]: c
 centre y, width and height in input pixels, objectness, then a score per class. Filtering by
 score and non-maximum suppression are left to the caller, as in detection_yolox/yolo.py.
 
-Usage: python3 scripts/export-yolox-onnx.py [--output PATH] [--if-missing]
+Writes detection_yolox/model_data/YOLOX-final.onnx.
+
+Usage: python3 scripts/export-yolox-onnx.py [--if-missing]
 """
 import argparse
 import sys
@@ -16,20 +18,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WEIGHTS = ROOT / "detection_yolox" / "model_data" / "YOLOX-final.pth"
 CLASSES = ROOT / "detection_yolox" / "model_data" / "ship_classes.txt"
-DEFAULT_OUTPUT = ROOT / "detection_yolox" / "model_data" / "YOLOX-final.onnx"
+OUTPUT = ROOT / "detection_yolox" / "model_data" / "YOLOX-final.onnx"
 INPUT_SIZE = 640
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
         "--if-missing",
         action="store_true",
         help="do nothing if the output exists, and only warn if the weights have not been fetched")
     args = parser.parse_args()
 
-    if args.if_missing and args.output.exists():
+    if args.if_missing and OUTPUT.exists():
         return
     if not WEIGHTS.exists():
         message = f"{WEIGHTS} not found: fetch it first with scripts/fetch-model-weights.sh"
@@ -47,18 +48,17 @@ def main():
 
     _, num_classes = get_classes(str(CLASSES))
     body = YoloBody(num_classes, "s")
-    body.load_state_dict(torch.load(str(WEIGHTS), map_location="cpu"))
+    body.load_state_dict(torch.load(str(WEIGHTS), map_location="cpu", weights_only=True))
 
     model = DecodedYolox(body).eval()
-    args.output.parent.mkdir(parents=True, exist_ok=True)
     torch.onnx.export(
         model,
         torch.zeros(1, 3, INPUT_SIZE, INPUT_SIZE),
-        str(args.output),
+        str(OUTPUT),
         input_names=["images"],
         output_names=["predictions"],
         opset_version=12)
-    print(f"exported {args.output}")
+    print(f"exported {OUTPUT}")
 
 
 def decoded(outputs):

@@ -55,8 +55,9 @@ tasks:
       RunDefaults__FrameCount: '{{.FRAME_COUNT}}'
       RunDefaults__FrameIntervalSeconds: '{{.FRAME_INTERVAL_SECONDS}}'
     cmds:
-      # Exports the model the first time; only warns when the weights have not been fetched yet.
-      - python3 "{{dir (dir .TASKFILE_DIR)}}/scripts/export-yolox-onnx.py" --if-missing --output "{{.MODEL_PATH}}"
+      # Exports the model to its default MODEL_PATH the first time; only warns when the weights
+      # have not been fetched yet.
+      - python3 "{{dir (dir .TASKFILE_DIR)}}/scripts/export-yolox-onnx.py" --if-missing
       - echo "Open http://localhost:{{.PORT}}/ in a browser once the app has started (Ctrl+C to stop)."
       - dotnet run --project {{.WEB_PROJ_DIR}} --urls http://localhost:{{.PORT}}
 

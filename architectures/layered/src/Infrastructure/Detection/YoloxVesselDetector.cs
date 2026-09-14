@@ -42,9 +42,9 @@ public sealed class YoloxVesselDetector : IVesselDetector, IDisposable
     {
         var session = _session.Value;
         var letterbox = Letterbox.Fit(image.Width, image.Height);
-        var input = NamedOnnxValue.CreateFromTensor(session.InputMetadata.Keys.First(), ToInput(image, letterbox));
+        var input = NamedOnnxValue.CreateFromTensor(session.InputNames[0], ToInput(image, letterbox));
         using var outputs = session.Run([input]);
-        return ToDetections(outputs.First().AsTensor<float>(), letterbox, image, timestamp);
+        return ToDetections(outputs[0].AsTensor<float>(), letterbox, image, timestamp);
     }
 
     public void Dispose()
