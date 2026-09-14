@@ -4,8 +4,8 @@ DeepSORVF本体（Pythonの `utils/AIS_utils.py` / `utils/VIS_utils.py` / `utils
 にあるAIS処理・検出・追跡・融合ロジック）を、レイヤードアーキテクチャに当てはめて実装した
 場合の練習用実装（[issue #1](https://github.com/shun968/DeepSORVF-web/issues/1)）。
 DeepSORVF自体のPythonからの本格移植ではなく、レイヤードアーキテクチャという設計パターンを
-実際に当てはめたときの過不足を検証することが目的。そのため、検出（YOLOX）・追跡（DeepSORT）
-は固定値/決定的な値を返すモックに留めている。
+実際に当てはめたときの過不足を検証することが目的。検出はPython版と同じYOLOXの重みをONNXに
+書き出して使い、追跡はDeepSORTの代わりに枠の重なり（IoU）で同じ船を対応付ける簡易版にしている。
 
 ## 層とプロジェクトの対応
 
@@ -22,27 +22,33 @@ DeepSORVF自体のPythonからの本格移植ではなく、レイヤードア�
 |---|---|---|
 | `utils/AIS_utils.py`（AISPRO: CSV読み込み・粗選別・位置推算・座標変換） | `Domain/Entities/AisRecord.cs`, `Domain/Geometry/*`, `Infrastructure/Repositories/CsvAisRepository.cs`, `Application/Services/AisService.cs` | 移植済み（AIS_vis履歴を除く。下記参照） |
 | `utils/file_read.py`（カメラパラメータ読み込み） | `Infrastructure/Repositories/TextFileCameraParametersRepository.cs` | 移植済み |
-| `utils/VIS_utils.py`（YOLOX検出・DeepSORT追跡） | `Application/Services/DetectionService.cs`, `TrackingService.cs` | issue #1の方針通りモック実装（実アルゴリズムは対象外）。軌跡履歴の蓄積のみ実装 |
+| `utils/VIS_utils.py`（YOLOX検出・DeepSORT追跡） | `Application/Services/DetectionService.cs`, `TrackingService.cs`, `Infrastructure/Detection/YoloxVesselDetector.cs`, `Infrastructure/Repositories/OpenCvVideoFrameRepository.cs` | 検出はYOLOX（ONNX Runtime）で移植済み。追跡はIoUによる簡易版（DeepSORT・耐遮蔽処理は対象外） |
 | `utils/FUS_utils.py`（FUSPRO: DTW軌跡類似度によるAIS-映像の対応付け） | `Domain/Trajectory/*`, `Application/Services/FusionService.cs` | 移植済み（DTW・ハンガリアン法・束縛状態機械） |
 | `utils/gen_result.py`（MOT形式の結果ファイル出力） | `Application/Pipeline/MotResultRows.cs`, `Infrastructure/Repositories/MotResultFileWriter.cs` | 移植済み |
 | `main.py`（フレームループ: AIS処理→検出→追跡→融合） | `Application/Pipeline/VesselTrackingPipeline.cs`, `Web/Controllers/VesselTrackingController.cs` | 移植済み |
-| 動画入出力・描画（`main.py`, `utils/draw.py`） | 未着手・対象外 | 下記「スコープ外」参照 |
+| 動画入出力・描画（`main.py`, `utils/draw.py`） | 読み込みは `OpenCvVideoFrameRepository`、描画は可視化画面（`src/Web/wwwroot/`） | 動画ファイルへの書き出しは対象外 |
 
 ### スコープ外にした部分とその理由
 
 issue #1の主眼は「アーキテクチャの当てはめ方の検証」であり、DeepSORVFのアルゴリズム自体の
 精度移植ではないため、以下は意図的に簡略化・対象外としている。
 
-- **検出（YOLOX）・追跡（DeepSORT）の実アルゴリズム**: issue #1に明記の通りモックに留める。
-  学習済み重み（`YOLOX-final.pth`/`ckpt.t7`）はこのリポジトリに含まれておらず、動画デコーダも
-  無いため。`DetectionService`は**カメラの視野に入ったAIS位置の上にbboxを置く**モックで、
-  これにより追跡・融合の後段を動画なしで動かせる。裏を返すと検出と融合が構造的に循環している
-  ので、融合が当たることは配線が通っている証拠にはなるが、実映像での精度の証拠にはならない
-- **動画のデコード・描画**: OpenCvSharpやFFmpegといったネイティブ依存が必要になる一方、
-  検出がモックである以上デコードしたフレームを消費する先が無く、描画しても偽のbboxが出るだけ
-  なので見送っている
+- **追跡（DeepSORT）の実アルゴリズム**: 外観特徴（`ckpt.t7`）による再識別やカルマンフィルタは
+  持たず、`TrackingService`は前フレームの枠との重なり（IoU）で同じ船を対応付けるだけ。3フレームを
+  超えて検出されなかった船は、次に現れたとき別のトラックIDになる
 - **アンチオクルージョン処理**（論文の中核貢献、`VIS_utils.py`の`arg.anti`）: DeepSORTの
   トラッカー内部状態に対して働く処理なので、実トラッカーが無い状態では実装しても意味がない
+
+### 検出（YOLOX）について
+
+`detection_yolox/model_data/YOLOX-final.pth` を `scripts/export-yolox-onnx.py` でONNXに書き出し
+（出力の復元 `decode_outputs` までをグラフに含める）、ONNX Runtimeで推論する。前処理（レターボックス・
+正規化）としきい値0.5・NMS 0.3は `detection_yolox/yolo.py` と同じ。`task run` は書き出し済みでなければ
+自動で書き出す（重みは `scripts/fetch-model-weights.sh` で先に取得しておく）。
+
+動画のフレームはOpenCvSharp（同梱FFmpeg）で読み、1回の実行の間は動画を開いたまま先へ読み進める。
+公式LinuxランタイムはGTKの共有ライブラリに依存するため、devcontainerに `libgtk-3-0` を入れている。
+動画が無い実行（同梱の合成データなど）では検出を行わない。
 
 ### 融合（DTW軌跡マッチング）について
 
@@ -117,13 +123,13 @@ task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_
 サンプルデータの4隻は、パイプラインの各段が効いていることを1回のリクエストで確認できるように
 選んである（詳細は [`sample-data/README.md`](./sample-data/README.md)）。
 
-- 真東800mの船（MMSI 431234567）→ ピクセルx≈960（主点）に投影され、融合でMMSIが紐づく
-- 東北東1500mの船（MMSI 431987654）→ 画面左寄りに投影され、同じく紐づく
+- 真東800mの船（MMSI 431234567）→ ピクセルx≈960（主点）に投影される
+- 東北東1500mの船（MMSI 431987654）→ 画面左寄りに投影される
 - 真北900mの船（MMSI 431555001）→ 水平視野外なので出てこない
 - 真東4500mの船（MMSI 431222999）→ 2海里の距離ゲート外なので出てこない
 - AISファイルは12:00:00の1秒分しか無いため、2フレーム目以降は**位置推算**で座標が動く
   （西進する船は画面下方向へ、東進して遠ざかる船は水平線方向へ）
-- 3本目のトラックは「AIS非搭載船」を模したモック検出なので、MMSIが `null` のまま残る
+- 動画が無いので検出・追跡・融合は行われない（検出まで確認するには `clip-01/` を使う）
 
 ## セットアップ
 

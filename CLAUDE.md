@@ -76,7 +76,8 @@ changes there over refactors.
 * `.devcontainer/Dockerfile` (`python:3.7-slim` base) plus the top-level `requirements.txt`
   (`postCreateCommand` runs `pip install --user -r requirements.txt`) reproduce the README's
   documented runtime, CPU-only. `libgl1`/`libglib2.0-0` are installed for `opencv-python`, which needs
-  them even headless. The two model checkpoints aren't fetched by `postCreateCommand`, since `gh`
+  them even headless, and `libgtk-3-0` for the OpenCvSharp runtime the C# ports under
+  `architectures/` decode video with (its native library links against GTK). The two model checkpoints aren't fetched by `postCreateCommand`, since `gh`
   may not be logged in yet at that point — run `scripts/fetch-model-weights.sh` once, which pulls
   them from the `weights-v1` GitHub Release. Trade-off worth knowing: Python 3.7 reached end-of-life in 2023, so
   `python:3.7-slim` gets no further upstream security patches — pinned only because the README (and

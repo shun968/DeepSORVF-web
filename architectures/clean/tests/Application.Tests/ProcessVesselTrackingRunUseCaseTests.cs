@@ -48,6 +48,7 @@ public class ProcessVesselTrackingRunUseCaseTests
 
         var frameUseCase = new ProcessVideoFrameUseCase(
             aisReader.Object,
+            new Mock<IVideoFrameReader>().Object,
             detector.Object,
             tracker.Object,
             fusionEngine,
@@ -107,5 +108,36 @@ public class ProcessVesselTrackingRunUseCaseTests
         // even though only the first second has a message.
         var ys = response.Frames.Select(frame => Assert.Single(frame.Vessels).Y).ToList();
         Assert.True(ys[0] < ys[1] && ys[1] < ys[2], $"expected the vessel to descend the frame, got {string.Join(", ", ys)}");
+    }
+
+    [Fact]
+    public void Execute_TakesEachFramesPictureFromItsMomentInTheVideo()
+    {
+        var cameraReader = new Mock<ICameraParametersReader>();
+        cameraReader.Setup(r => r.Read(CameraPath)).Returns(Parameters);
+        var aisReader = new Mock<IAisReader>();
+        aisReader.Setup(r => r.ReadAt(AisDirectory, It.IsAny<DateTimeOffset>())).Returns([]);
+        var videoFrameReader = new Mock<IVideoFrameReader>();
+        var detector = new Mock<IDetector>();
+        detector.Setup(d => d.Detect(It.IsAny<VideoFrame>())).Returns([]);
+        var tracker = new Mock<ITracker>();
+        tracker.Setup(t => t.Track(It.IsAny<IReadOnlyList<Detection>>(), It.IsAny<DateTimeOffset>())).Returns([]);
+        var frameUseCase = new ProcessVideoFrameUseCase(
+            aisReader.Object,
+            videoFrameReader.Object,
+            detector.Object,
+            tracker.Object,
+            new Mock<IFusionEngine>().Object,
+            new AisSightingService());
+        var useCase = new ProcessVesselTrackingRunUseCase(cameraReader.Object, frameUseCase);
+
+        useCase.Execute(new ProcessVesselTrackingRunRequest(
+            AisDirectory, CameraPath, Start, FrameCount: 3, TimeSpan.FromSeconds(10), "/video.mp4", VideoStartTime: Start.AddSeconds(-5)));
+
+        // The video started five seconds before the run, so each frame is five seconds further in.
+        foreach (var seconds in new[] { 5, 15, 25 })
+        {
+            videoFrameReader.Verify(r => r.ReadAt("/video.mp4", TimeSpan.FromSeconds(seconds)));
+        }
     }
 }

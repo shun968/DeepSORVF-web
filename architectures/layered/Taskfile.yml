@@ -18,6 +18,8 @@ tasks:
     desc: Serve the vessel tracking viewer on http://localhost:5000 (PORT to change) — the page runs the pipeline and draws the AIS positions, tracks and fusion results frame by frame, over the video when there is one; its form opens on the FVessel clip in the repository root's clip-01/ (with its video) when that is present, otherwise on the bundled synthetic sample-data (no video); override AIS_DIR, CAMERA_PARAMS, VIDEO_PATH, START_TIME, FRAME_COUNT, FRAME_INTERVAL_SECONDS or RESULT_DIR to open other data
     vars:
       PORT: '{{.PORT | default "5000"}}'
+      # The YOLOX detector, exported to ONNX from detection_yolox/model_data/YOLOX-final.pth.
+      MODEL_PATH: '{{.MODEL_PATH | default (print (dir (dir .TASKFILE_DIR)) "/detection_yolox/model_data/YOLOX-final.onnx")}}'
       # The FVessel test clip, placed at the repository root (gitignored, see the root README).
       CLIP_DIR: '{{.CLIP_DIR | default (print (dir (dir .TASKFILE_DIR)) "/clip-01")}}'
       CLIP_VIDEO:
@@ -46,6 +48,7 @@ tasks:
       FRAME_INTERVAL_SECONDS: '{{if .FRAME_INTERVAL_SECONDS}}{{.FRAME_INTERVAL_SECONDS}}{{else if .USE_CLIP}}1{{else}}60{{end}}'
       RESULT_DIR: '{{.RESULT_DIR | default ""}}'
     env:
+      Detection__ModelPath: '{{.MODEL_PATH}}'
       RunDefaults__AisDataDirectory: '{{.AIS_DIR}}'
       RunDefaults__CameraParametersPath: '{{.CAMERA_PARAMS}}'
       RunDefaults__VideoPath: '{{.VIDEO_PATH}}'
@@ -54,6 +57,9 @@ tasks:
       RunDefaults__FrameIntervalSeconds: '{{.FRAME_INTERVAL_SECONDS}}'
       RunDefaults__ResultDirectory: '{{.RESULT_DIR}}'
     cmds:
+      # Exports the model to its default MODEL_PATH the first time; only warns when the weights
+      # have not been fetched yet.
+      - python3 "{{dir (dir .TASKFILE_DIR)}}/scripts/export-yolox-onnx.py" --if-missing
       - echo "Open http://localhost:{{.PORT}}/ in a browser once the app has started (Ctrl+C to stop)."
       - dotnet run --project {{.WEB_PROJ_DIR}} --urls http://localhost:{{.PORT}}
 

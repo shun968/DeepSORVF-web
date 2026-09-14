@@ -10,6 +10,10 @@ public sealed record VesselTrackingRunRequest
     public required DateTimeOffset StartTime { get; init; }
     public required int FrameCount { get; init; }
     public required int FrameIntervalSeconds { get; init; }
+
+    // Optional: when the configured video (RunDefaults:VideoPath) starts at a different moment
+    // from the run. Defaults to StartTime.
+    public DateTimeOffset? VideoStartTime { get; init; }
 }
 
 public sealed record VesselTrackingRunResponse(int ImageWidth, int ImageHeight, IReadOnlyList<FrameDto> Frames);

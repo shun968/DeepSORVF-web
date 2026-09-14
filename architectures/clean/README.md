@@ -31,13 +31,14 @@ DeepSORVFのパイプライン（AIS処理→検出→追跡→融合）を、**
 
 ## 実装状況
 
-issue #2のスコープ（最小フローが動けばよい、検出・追跡はダミーでよい）に沿った範囲で実装している。
+issue #2のスコープ（最小フローが動けばよい）に沿った範囲で実装し、その後、検出をYOLOXに、追跡を
+IoUによる簡易版に置き換えた。
 
 | Pythonの対応箇所 | 移植先 | 状態 |
 |---|---|---|
 | `utils/AIS_utils.py`（CSV読み込み・粗選別・位置推算・座標変換） | `Domain/Services/AisSightingService.cs`, `Domain/Geometry/*`, `Infrastructure/Adapters/CsvAisReader.cs` | 移植済み |
 | `utils/file_read.py`（カメラパラメータ読み込み） | `Infrastructure/Adapters/TextFileCameraParametersReader.cs` | 移植済み |
-| `utils/VIS_utils.py`（YOLOX検出・DeepSORT追跡） | `Infrastructure/Mocks/*` | モック実装 |
+| `utils/VIS_utils.py`（YOLOX検出・DeepSORT追跡） | `Infrastructure/Adapters/YoloxDetector.cs`, `IouTracker.cs`, `OpenCvVideoFrameReader.cs` | 検出はYOLOX（ONNX Runtime）で移植済み。追跡はIoUによる簡易版（DeepSORT・耐遮蔽処理は対象外） |
 | `utils/FUS_utils.py`（DTW軌跡類似度） | `Infrastructure/Adapters/NearestVesselFusionEngine.cs` | ピクセル距離の最近傍マッチングに簡略化 |
 | `main.py`（フレームループ） | `Application/UseCases/*` | 移植済み |
 
@@ -46,13 +47,23 @@ issue #2のスコープ（最小フローが動けばよい、検出・追跡は
 深さではないため）。逆にlayered側にあるDTW・ハンガリアン法・MOT形式出力は、issue #2のスコープ外
 なので持ち込んでいない。
 
-### モック検出器について
+### 検出・追跡について
 
-`MockDetector` は**AISを参照しない**。フレーム番号の関数としてbboxを画面上で移動させるだけなので、
-どのトラックがどのMMSIに紐づくかは事実上任意になる。layered側のモックがAIS投影位置の上にbboxを
-置いていた（＝検出と融合が循環していた）のに対し、こちらは`IDetector`を「フレームを見て答える」
-という抽象のまま保っている。動作確認で見えるのは**各段が繋がっていること**であって、検出精度では
-ない。
+当初はモック（フレーム番号の関数としてbboxを動かす `MockDetector` と、並び順でIDを振る
+`SequentialTracker`）だったものを、次の3つのアダプタに置き換えた。ユースケースの変更は、動画の
+フレームを読むポート `IVideoFrameReader` を1つ足しただけで、検出器・追跡器の差し替え自体は
+`Program.cs` のDI登録で済んでいる。
+
+- `OpenCvVideoFrameReader`: OpenCvSharp（同梱FFmpeg）で動画のフレームを読む。1回の実行の間は
+  動画を開いたまま先へ読み進める。公式LinuxランタイムはGTKの共有ライブラリに依存するため、
+  devcontainerに `libgtk-3-0` を入れている
+- `YoloxDetector`: `scripts/export-yolox-onnx.py` で書き出したONNX（出力の復元までを含む）を
+  ONNX Runtimeで推論する。前処理・しきい値・NMSは `detection_yolox/yolo.py` と同じ。`task run` は
+  書き出し済みでなければ自動で書き出す（重みは `scripts/fetch-model-weights.sh` で先に取得しておく）
+- `IouTracker`: 前フレームの枠との重なり（IoU）で同じ船を対応付ける。外観特徴による再識別は
+  持たず、3フレームを超えて検出されなかった船は別のトラックIDになる
+
+動画が無い実行（同梱の合成データなど）では検出を行わない。
 
 ## 実行方法
 
@@ -81,7 +92,7 @@ task run AIS_DIR=/workspace/clip-01/ais CAMERA_PARAMS=/workspace/clip-01/camera_
 `clip-01/` が無い場合、`task run` の画面はこのデータを使い、2021-01-01T12:00:00Zから60秒間隔で3フレームを処理する。
 
 AISの投影座標・視野判定・距離ゲート・位置推算はlayered側と同じ結果になる（同じ幾何実装のため）。
-融合結果だけは上記の通りモック検出器の性質から異なる。
+動画が無いので検出・追跡・融合は行われない（検出まで確認するには `clip-01/` を使う）。
 
 ## セットアップ
 

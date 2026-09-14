@@ -12,7 +12,9 @@ public sealed record ProcessVideoFrameRequest(
     int FrameIndex,
     DateTimeOffset Timestamp,
     int ImageWidth,
-    int ImageHeight);
+    int ImageHeight,
+    string? VideoPath = null,
+    TimeSpan VideoPosition = default);
 
 public sealed record ProcessVideoFrameResponse(
     int FrameIndex,
@@ -31,6 +33,7 @@ public sealed record ProcessVideoFrameResponse(
 public sealed class ProcessVideoFrameUseCase
 {
     private readonly IAisReader _aisReader;
+    private readonly IVideoFrameReader _videoFrameReader;
     private readonly IDetector _detector;
     private readonly ITracker _tracker;
     private readonly IFusionEngine _fusionEngine;
@@ -38,12 +41,14 @@ public sealed class ProcessVideoFrameUseCase
 
     public ProcessVideoFrameUseCase(
         IAisReader aisReader,
+        IVideoFrameReader videoFrameReader,
         IDetector detector,
         ITracker tracker,
         IFusionEngine fusionEngine,
         AisSightingService aisSightingService)
     {
         _aisReader = aisReader;
+        _videoFrameReader = videoFrameReader;
         _detector = detector;
         _tracker = tracker;
         _fusionEngine = fusionEngine;
@@ -55,7 +60,15 @@ public sealed class ProcessVideoFrameUseCase
         var received = _aisReader.ReadAt(request.AisDirectoryPath, request.Timestamp);
         var vessels = _aisSightingService.Assemble(received, request.Camera, request.Timestamp);
 
-        var frame = new VideoFrame(request.FrameIndex, request.Timestamp, request.ImageWidth, request.ImageHeight);
+        // Without a video the detector is handed a frame with no picture in it. With one, the
+        // picture's own size wins over the size the calibration implies.
+        var image = request.VideoPath is null ? null : _videoFrameReader.ReadAt(request.VideoPath, request.VideoPosition);
+        var frame = new VideoFrame(
+            request.FrameIndex,
+            request.Timestamp,
+            image?.Width ?? request.ImageWidth,
+            image?.Height ?? request.ImageHeight,
+            image);
         var detections = _detector.Detect(frame);
         var tracks = _tracker.Track(detections, request.Timestamp);
         var fusions = _fusionEngine.Fuse(tracks, vessels, request.MaxMatchDistancePixels, request.Timestamp);

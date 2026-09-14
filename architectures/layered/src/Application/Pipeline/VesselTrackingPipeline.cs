@@ -37,7 +37,9 @@ public sealed class VesselTrackingPipeline
         DateTimeOffset startTimeUtc,
         int frameCount,
         TimeSpan frameInterval,
-        string? resultDirectoryPath = null)
+        string? resultDirectoryPath = null,
+        string? videoPath = null,
+        DateTimeOffset? videoStartTime = null)
     {
         var parameters = _cameraParametersRepository.Load(cameraParametersPath);
         var camera = new CameraGeometry(parameters);
@@ -52,12 +54,15 @@ public sealed class VesselTrackingPipeline
         var imageWidth = parameters.PrincipalPointX * 2;
         var imageHeight = parameters.PrincipalPointY * 2;
 
+        // The video starts with the run unless told otherwise, and each frame's picture is taken
+        // from the moment that frame represents.
+        var videoStart = videoStartTime ?? startTimeUtc;
         var results = new List<FrameResult>(frameCount);
         for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
         {
             var timestamp = startTimeUtc + (frameInterval * frameIndex);
             var ais = _aisService.Process(aisDirectoryPath, camera, timestamp);
-            var detections = _detectionService.Detect(ais.Visible, timestamp);
+            var detections = _detectionService.Detect(videoPath, timestamp - videoStart, timestamp);
             var visual = _trackingService.Track(detections, timestamp);
             var fusedTracks = _fusionService.Fuse(visual, ais, maxMatchDistancePixels, timestamp);
 

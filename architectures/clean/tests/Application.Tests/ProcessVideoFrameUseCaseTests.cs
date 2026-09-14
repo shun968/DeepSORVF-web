@@ -64,7 +64,7 @@ public class ProcessVideoFrameUseCaseTests
             .Returns([new FusionResult(track, vessel, Timestamp)]);
 
         var useCase = new ProcessVideoFrameUseCase(
-            aisReader.Object, detector.Object, tracker.Object, fusion.Object, new AisSightingService());
+            aisReader.Object, new Mock<IVideoFrameReader>().Object, detector.Object, tracker.Object, fusion.Object, new AisSightingService());
 
         var response = useCase.Execute(Request());
 
@@ -105,12 +105,60 @@ public class ProcessVideoFrameUseCaseTests
             .Returns([]);
 
         var useCase = new ProcessVideoFrameUseCase(
-            aisReader.Object, detector.Object, tracker.Object, fusion.Object, new AisSightingService());
+            aisReader.Object, new Mock<IVideoFrameReader>().Object, detector.Object, tracker.Object, fusion.Object, new AisSightingService());
 
         var response = useCase.Execute(Request());
 
         Assert.Single(response.Vessels);
         Assert.Empty(response.Tracks);
         Assert.Empty(response.Fusions);
+    }
+
+    [Fact]
+    public void Execute_WithAVideo_HandsTheDetectorThePictureAtTheRequestedPosition()
+    {
+        var image = new FrameImage(4, 2, new byte[4 * 2 * 3]);
+        var videoFrameReader = new Mock<IVideoFrameReader>();
+        videoFrameReader.Setup(r => r.ReadAt("/video.mp4", TimeSpan.FromSeconds(11))).Returns(image);
+        var detector = new Mock<IDetector>();
+        var useCase = UseCaseSeeingNothing(videoFrameReader.Object, detector);
+
+        useCase.Execute(Request() with { VideoPath = "/video.mp4", VideoPosition = TimeSpan.FromSeconds(11) });
+
+        // The picture's own size replaces the one the calibration implies.
+        detector.Verify(d => d.Detect(It.Is<VideoFrame>(f => f.Image == image && f.Width == 4 && f.Height == 2)));
+    }
+
+    [Fact]
+    public void Execute_WithoutAVideo_ReadsNoPictureAndHandsTheDetectorAnEmptyFrame()
+    {
+        var videoFrameReader = new Mock<IVideoFrameReader>();
+        var detector = new Mock<IDetector>();
+        var useCase = UseCaseSeeingNothing(videoFrameReader.Object, detector);
+
+        useCase.Execute(Request());
+
+        videoFrameReader.VerifyNoOtherCalls();
+        detector.Verify(d => d.Detect(It.Is<VideoFrame>(f => f.Image == null && f.Width == 1920 && f.Height == 1080)));
+    }
+
+    private static ProcessVideoFrameUseCase UseCaseSeeingNothing(IVideoFrameReader videoFrameReader, Mock<IDetector> detector)
+    {
+        var aisReader = new Mock<IAisReader>();
+        aisReader.Setup(r => r.ReadAt(It.IsAny<string>(), It.IsAny<DateTimeOffset>())).Returns([]);
+        detector.Setup(d => d.Detect(It.IsAny<VideoFrame>())).Returns([]);
+        var tracker = new Mock<ITracker>();
+        tracker.Setup(t => t.Track(It.IsAny<IReadOnlyList<Detection>>(), It.IsAny<DateTimeOffset>())).Returns([]);
+        var fusion = new Mock<IFusionEngine>();
+        fusion
+            .Setup(f => f.Fuse(
+                It.IsAny<IReadOnlyList<Track>>(),
+                It.IsAny<IReadOnlyList<VisibleVessel>>(),
+                It.IsAny<double>(),
+                It.IsAny<DateTimeOffset>()))
+            .Returns([]);
+
+        return new ProcessVideoFrameUseCase(
+            aisReader.Object, videoFrameReader, detector.Object, tracker.Object, fusion.Object, new AisSightingService());
     }
 }

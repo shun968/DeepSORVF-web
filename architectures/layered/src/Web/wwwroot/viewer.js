@@ -25,6 +25,10 @@ function readRunRequest(fieldValue) {
   if (resultDirectory) {
     request.resultDirectory = resultDirectory;
   }
+  const videoStartTime = fieldValue("videoStartTime");
+  if (videoStartTime) {
+    request.videoStartTime = videoStartTime;
+  }
   return request;
 }
 
@@ -130,7 +134,7 @@ async function openRun(run, request) {
   noVideoNote.hidden = state.hasVideo;
   noVideoNote.textContent = videoRequested
     ? "動画を読み込めませんでした。ブラウザが再生できる形式（H.264のmp4など）か確認してください。"
-    : "動画が設定されていないため、映像なしで描画しています。映像に重ねるには、リポジトリ直下に clip-01/ を置くか、VIDEO_PATH を指定して task run を起動してください。";
+    : "動画が設定されていないため、映像も船の検出もなしで描画しています。映像に重ねて検出するには、リポジトリ直下に clip-01/ を置くか、VIDEO_PATH を指定して task run を起動してください。";
   seek.max = String(Math.max(state.frames.length - 1, 0));
   viewer.hidden = false;
 

@@ -8,7 +8,9 @@ public sealed record ProcessVesselTrackingRunRequest(
     string CameraParametersPath,
     DateTimeOffset StartTimeUtc,
     int FrameCount,
-    TimeSpan FrameInterval);
+    TimeSpan FrameInterval,
+    string? VideoPath = null,
+    DateTimeOffset? VideoStartTime = null);
 
 // ImageWidth/ImageHeight are the size of the image the frames were projected into.
 public sealed record ProcessVesselTrackingRunResponse(
@@ -43,17 +45,23 @@ public sealed class ProcessVesselTrackingRunUseCase
         var imageHeight = (int)(parameters.PrincipalPointY * 2);
         var maxMatchDistancePixels = Math.Min(parameters.PrincipalPointX, parameters.PrincipalPointY);
 
+        // The video starts with the run unless told otherwise, and each frame's picture is taken
+        // from the moment that frame represents.
+        var videoStartTime = request.VideoStartTime ?? request.StartTimeUtc;
         var frames = new List<ProcessVideoFrameResponse>(request.FrameCount);
         for (var frameIndex = 0; frameIndex < request.FrameCount; frameIndex++)
         {
+            var timestamp = request.StartTimeUtc + (request.FrameInterval * frameIndex);
             frames.Add(_processVideoFrame.Execute(new ProcessVideoFrameRequest(
                 request.AisDirectoryPath,
                 camera,
                 maxMatchDistancePixels,
                 frameIndex,
-                request.StartTimeUtc + (request.FrameInterval * frameIndex),
+                timestamp,
                 imageWidth,
-                imageHeight)));
+                imageHeight,
+                request.VideoPath,
+                timestamp - videoStartTime)));
         }
 
         return new ProcessVesselTrackingRunResponse(imageWidth, imageHeight, frames);

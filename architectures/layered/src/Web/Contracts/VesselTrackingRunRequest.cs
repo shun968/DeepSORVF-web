@@ -15,4 +15,8 @@ public sealed record VesselTrackingRunRequest
     // Optional: when set, the run also writes the MOT-format detection/tracking/fusion
     // files the Python original produces into this directory.
     public string? ResultDirectory { get; init; }
+
+    // Optional: when the configured video (RunDefaults:VideoPath) starts at a different moment
+    // from the run. Defaults to StartTime.
+    public DateTimeOffset? VideoStartTime { get; init; }
 }
