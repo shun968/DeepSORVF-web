@@ -54,10 +54,6 @@ const state = {
   intervalSeconds: 1,
   // Where frame 0 falls on the video's own timeline, in seconds.
   videoOffsetSeconds: 0,
-  // Where the browser says the video's timeline begins. Usually 0, but a file can start well
-  // past it: clip-01's edit list is malformed (an empty edit of -0.04s written as unsigned,
-  // i.e. about 13 hours), which the browser's demuxer may take as a start delay.
-  videoOriginSeconds: 0,
   hasVideo: false,
   current: -1,
   timer: null,
@@ -152,21 +148,14 @@ function loadVideo() {
       video.onerror = null;
       resolve(loaded);
     };
-    video.onloadedmetadata = () => {
-      const seekableStart = video.seekable.length > 0 ? video.seekable.start(0) : 0;
-      state.videoOriginSeconds = Math.max(video.currentTime, seekableStart);
-      finish(true);
-    };
+    video.onloadedmetadata = () => finish(true);
     video.onerror = () => finish(false);
     video.src = `api/vessel-tracking/video?v=${Date.now()}`;
   });
 }
 
-// Seconds into the video, measured from where its timeline begins.
-const videoElapsedSeconds = () => video.currentTime - state.videoOriginSeconds;
-
-function frameAtVideoTime(elapsedSeconds) {
-  const index = Math.floor((elapsedSeconds - state.videoOffsetSeconds) / state.intervalSeconds + 1e-6);
+function frameAtVideoTime(seconds) {
+  const index = Math.floor((seconds - state.videoOffsetSeconds) / state.intervalSeconds + 1e-6);
   return Math.min(Math.max(index, 0), state.frames.length - 1);
 }
 
@@ -176,7 +165,7 @@ function showFrame(index, seekVideo = false) {
   }
 
   if (seekVideo && state.hasVideo) {
-    video.currentTime = state.videoOriginSeconds + Math.max(state.videoOffsetSeconds + index * state.intervalSeconds, 0);
+    video.currentTime = Math.max(state.videoOffsetSeconds + index * state.intervalSeconds, 0);
   }
 
   if (index === state.current) {
@@ -284,7 +273,7 @@ function row(...cells) {
 const formatBox = (fusion) => [fusion.x1, fusion.y1, fusion.x2, fusion.y2].map((v) => Math.round(v)).join(", ");
 
 function describe(frame) {
-  const videoTime = state.hasVideo ? `（動画 ${Math.max(videoElapsedSeconds(), 0).toFixed(1)} 秒）` : "";
+  const videoTime = state.hasVideo ? `（動画 ${video.currentTime.toFixed(1)} 秒）` : "";
   frameLabel.textContent = `フレーム ${frame.index + 1} / ${state.frames.length}　${frame.timestamp}${videoTime}`;
 
   fusionRows.replaceChildren(
@@ -352,12 +341,12 @@ function followVideo() {
   }
 
   const runEndSeconds = state.videoOffsetSeconds + state.frames.length * state.intervalSeconds;
-  if (videoElapsedSeconds() >= runEndSeconds) {
+  if (video.currentTime >= runEndSeconds) {
     stopPlayback();
     return;
   }
 
-  showFrame(frameAtVideoTime(videoElapsedSeconds()));
+  showFrame(frameAtVideoTime(video.currentTime));
   requestAnimationFrame(followVideo);
 }
 
@@ -367,6 +356,6 @@ seek.addEventListener("input", () => showFrame(Number(seek.value), true));
 video.addEventListener("pause", () => {
   playButton.textContent = "再生";
 });
-video.addEventListener("seeked", () => showFrame(frameAtVideoTime(videoElapsedSeconds())));
+video.addEventListener("seeked", () => showFrame(frameAtVideoTime(video.currentTime)));
 
 loadDefaults().catch((error) => showStatus(`既定値を読み込めませんでした: ${error.message}`, true));

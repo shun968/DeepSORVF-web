@@ -1,5 +1,6 @@
 using CleanArchitecture.Application.UseCases;
 using CleanArchitecture.Web.Contracts;
+using CleanArchitecture.Web.Video;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
@@ -60,7 +61,8 @@ public sealed class VesselTrackingController : ControllerBase
 
     // Streams the video configured at startup (RunDefaults:VideoPath) for the viewer page to
     // draw a run over. Only that one file is served: taking the path from the request would
-    // let any caller read any file the app can.
+    // let any caller read any file the app can. An MP4 whose edit list holds an implausible
+    // start delay is served with that delay read as zero (see Mp4EditListRepair).
     [HttpGet("video")]
     public IActionResult GetVideo()
     {
@@ -75,6 +77,9 @@ public sealed class VesselTrackingController : ControllerBase
             contentType = "application/octet-stream";
         }
 
-        return PhysicalFile(Path.GetFullPath(path), contentType, enableRangeProcessing: true);
+        // The FileStreamResult disposes the stream, and with it the file, once the response is sent.
+        var file = System.IO.File.OpenRead(path);
+        var repairs = Mp4EditListRepair.FindImplausibleEmptyEdits(file);
+        return File(new ZeroedRangesStream(file, repairs), contentType, enableRangeProcessing: true);
     }
 }

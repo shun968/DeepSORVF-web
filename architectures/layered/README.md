@@ -81,7 +81,10 @@ POST /api/vessel-tracking/runs
 JSONで返す。
 
 可視化画面（`src/Web/wwwroot/`）用に、フォームの既定値を返す `GET /api/vessel-tracking/run-defaults`
-と、起動時に設定した動画（`RunDefaults:VideoPath`）を返す `GET /api/vessel-tracking/video` もある。動画のデコードは行わず、
+と、起動時に設定した動画（`RunDefaults:VideoPath`）を返す `GET /api/vessel-tracking/video` もある。
+clip-01のmp4は編集リストの開始遅延が壊れていて（-0.04秒が符号なしで書かれ、約13時間になっている）
+ブラウザで再生位置が大きくずれるため、動画全体より長い開始遅延は配信時に0として返す（ファイル自体は
+変更しない）。動画のデコードは行わず、
 `frameCount`件のダミーフレームとして処理する（issue #1の「映像またはダミーのフレーム列」の
 許容範囲内）。
 
