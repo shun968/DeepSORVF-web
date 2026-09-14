@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using LayeredArchitecture.Web.Contracts;
+using LayeredArchitecture.Web.Video;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Xunit;
@@ -172,6 +173,23 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal(HttpStatusCode.PartialContent, response.StatusCode);
         Assert.Equal("video/mp4", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(new byte[] { 2, 3, 4, 5 }, await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task GetVideo_ServesAnMp4WithItsBrokenStartDelayZeroed()
+    {
+        var mp4 = Mp4Samples.WithBrokenStartDelay();
+        var videoPath = Path.Combine(_directory, "broken.mp4");
+        File.WriteAllBytes(videoPath, mp4);
+        var client = ClientWithSettings(new() { ["RunDefaults:VideoPath"] = videoPath });
+
+        var served = await client.GetByteArrayAsync("/api/vessel-tracking/video");
+
+        var range = Assert.Single(Mp4EditListRepair.FindImplausibleEmptyEdits(new MemoryStream(mp4)));
+        Assert.Equal(mp4.Length, served.Length);
+        Assert.All(served.Skip((int)range.Offset).Take(range.Length), value => Assert.Equal(0, value));
+        Assert.Equal(mp4.Skip((int)range.Offset + range.Length), served.Skip((int)range.Offset + range.Length));
+        Assert.Empty(Mp4EditListRepair.FindImplausibleEmptyEdits(new MemoryStream(served)));
     }
 
     [Fact]
