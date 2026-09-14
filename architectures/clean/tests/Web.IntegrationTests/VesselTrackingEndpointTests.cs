@@ -152,6 +152,7 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
         {
             ["RunDefaults:AisDataDirectory"] = _aisDirectory,
             ["RunDefaults:StartTime"] = "2022-06-04T12:05:12+08:00",
+            ["RunDefaults:VideoStartTime"] = "2022-06-04T12:05:00+08:00",
             ["RunDefaults:FrameCount"] = "5",
         });
 
@@ -159,6 +160,7 @@ public class VesselTrackingEndpointTests : IClassFixture<WebApplicationFactory<P
 
         Assert.Equal(_aisDirectory, defaults!.AisDataDirectory);
         Assert.Equal("2022-06-04T12:05:12+08:00", defaults.StartTime);
+        Assert.Equal("2022-06-04T12:05:00+08:00", defaults.VideoStartTime);
         Assert.Equal(5, defaults.FrameCount);
         Assert.Null(defaults.VideoPath);
     }
